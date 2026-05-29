@@ -6,8 +6,9 @@ import {
   Calendar, Target, Film, ShoppingBag, Save, Feather, Compass,
   CloudMoon, Zap, Flower2, Gem, Flame, Leaf, KeyRound,
   BookMarked, Stars, GripVertical, Type as TypeIcon, AlignLeft,
-  Star, ChevronDown, Paintbrush, Eye
+  Star, ChevronDown, Paintbrush, Eye, LogOut, Mail
 } from "lucide-react";
+import { auth, watchUser, signUp, signIn, signInGoogle, logOut, loadState, saveState } from "./firebase";
 
 /* ============================================================
    ✦ ARRIÈRE-PLANS ANIMÉS (catalogue, choisissables par section)
@@ -1511,6 +1512,95 @@ function HomeUniverse({ content, setContent, affirm, onGo }) {
 
 
 /* ============================================================
+   ✦ ÉCRAN DE CONNEXION (Firebase Auth)
+   ============================================================ */
+function AuthGate() {
+  const [mode, setMode] = useState("signin"); // "signin" | "signup"
+  const [email, setEmail] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setErr(""); setBusy(true);
+    try {
+      if (mode==="signup") await signUp(email, pwd);
+      else await signIn(email, pwd);
+    } catch (e) {
+      setErr(e.code==="auth/invalid-credential" ? "Email ou mot de passe incorrect"
+        : e.code==="auth/email-already-in-use" ? "Cet email a déjà un compte"
+        : e.code==="auth/weak-password" ? "Mot de passe trop court (min 6 caractères)"
+        : e.code==="auth/invalid-email" ? "Email invalide"
+        : "Erreur : " + (e.message||e.code));
+    }
+    setBusy(false);
+  };
+  const google = async () => {
+    setErr(""); setBusy(true);
+    try { await signInGoogle(); }
+    catch (e) { setErr("Connexion Google annulée ou échouée"); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 overflow-hidden"
+      style={{background:"linear-gradient(160deg,#1a0d24 0%,#2a1638 50%,#3a2a5e 100%)"}}>
+      <Backdrop kind="fullMoon"/>
+      <div className="relative max-w-sm w-full">
+        <div className="text-center mb-8">
+          <div className="text-6xl mb-3 animate-spin-slow inline-block">🌙</div>
+          <h1 className="text-4xl mb-2" style={{fontFamily:'"Dancing Script", cursive', color:"#f0e0c8", textShadow:"0 0 20px rgba(224,201,122,0.5)"}}>Nyx</h1>
+          <p className="text-sm italic" style={{color:"#b39ac8"}}>
+            {mode==="signup" ? "Crée ton sanctuaire" : "Reviens dans ton sanctuaire"}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2" size={16} style={{color:"#b39ac8"}}/>
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="ton email"
+              className="w-full pl-10 pr-3 py-3 rounded-2xl bg-transparent outline-none"
+              style={{border:"1px solid rgba(180,140,220,0.4)", color:"#ede0f5"}}/>
+          </div>
+          <div className="relative">
+            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2" size={16} style={{color:"#b39ac8"}}/>
+            <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="mot de passe"
+              onKeyDown={e=>e.key==="Enter"&&submit()}
+              className="w-full pl-10 pr-3 py-3 rounded-2xl bg-transparent outline-none"
+              style={{border:"1px solid rgba(180,140,220,0.4)", color:"#ede0f5"}}/>
+          </div>
+
+          {err && <p className="text-xs text-center" style={{color:"#ffb0c0"}}>{err}</p>}
+
+          <button onClick={submit} disabled={busy||!email||!pwd}
+            className="w-full py-3 rounded-2xl text-sm transition hover:scale-95 disabled:opacity-30"
+            style={{background:"linear-gradient(180deg,#a875d4,#7a3a8a)", color:"#fff"}}>
+            {busy ? "..." : mode==="signup" ? "Créer mon compte" : "Entrer"}
+          </button>
+
+          <div className="flex items-center gap-3 my-3">
+            <div className="flex-1 h-px" style={{background:"rgba(180,140,220,0.3)"}}/>
+            <span className="text-xs" style={{color:"#9a7fb0"}}>ou</span>
+            <div className="flex-1 h-px" style={{background:"rgba(180,140,220,0.3)"}}/>
+          </div>
+
+          <button onClick={google} disabled={busy}
+            className="w-full py-3 rounded-2xl text-sm transition hover:scale-95"
+            style={{background:"rgba(255,255,255,0.95)", color:"#3a1f4e"}}>
+            ✦ Continuer avec Google
+          </button>
+
+          <button onClick={()=>{setMode(mode==="signin"?"signup":"signin"); setErr("");}}
+            className="w-full text-xs underline pt-3" style={{color:"#b39ac8"}}>
+            {mode==="signup" ? "J'ai déjà un compte — me connecter" : "Pas encore de compte — en créer un"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    ✦ VERROU D'ENTRÉE DE L'APP — code PIN magique
    ============================================================ */
 function AppLock({ pin, setPin, onUnlock }) {
@@ -1556,6 +1646,58 @@ function AppLock({ pin, setPin, onUnlock }) {
 }
 
 export default function App() {
+  // --- Auth ---
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [loadingState, setLoadingState] = useState(false);
+  const initialLoadDone = useRef(false);
+
+  useEffect(()=>{
+    const unsub = watchUser(async (u)=>{
+      setUser(u);
+      setAuthReady(true);
+      if (u) {
+        setLoadingState(true);
+        initialLoadDone.current = false;
+        const data = await loadState(u.uid);
+        if (data) {
+          // restaurer chaque morceau d'état si présent
+          if (data.appPin!==undefined) setAppPin(data.appPin);
+          if (data.homeContent) setHomeContent(data.homeContent);
+          if (data.theme) setTheme(data.theme);
+          if (data.font) setFont(data.font);
+          if (data.sections) setSections(data.sections);
+          if (data.overrides) setOverrides(data.overrides);
+          if (data.tasks) setTasks(data.tasks);
+          if (data.widgets) setWidgets(data.widgets);
+          if (data.scrapPages) setScrapPages(data.scrapPages);
+          if (data.journalPin!==undefined) setJournalPin(data.journalPin);
+          if (data.grimoireEntries) setGrimoireEntries(data.grimoireEntries);
+          if (data.shiftingNotes) setShiftingNotes(data.shiftingNotes);
+          if (data.astralNotes) setAstralNotes(data.astralNotes);
+          if (data.passions) setPassions(data.passions);
+          if (data.wishlist) setWishlist(data.wishlist);
+          if (data.goals) setGoals(data.goals);
+          if (data.gratitude) setGratitude(data.gratitude);
+          if (data.moodLog) setMoodLog(data.moodLog);
+          if (data.habits) setHabits(data.habits);
+          if (data.dreamLog) setDreamLog(data.dreamLog);
+          if (data.tarotLog) setTarotLog(data.tarotLog);
+          if (data.intentions) setIntentions(data.intentions);
+          if (data.customRituals) setCustomRituals(data.customRituals);
+          if (data.customTips) setCustomTips(data.customTips);
+          if (data.customAffirm) setCustomAffirm(data.customAffirm);
+        }
+        setLoadingState(false);
+        // attendre un petit instant avant d'autoriser les sauvegardes
+        setTimeout(()=>{ initialLoadDone.current = true; }, 500);
+      } else {
+        initialLoadDone.current = false;
+      }
+    });
+    return unsub;
+  }, []);
+
   const [appPin, setAppPin] = useState("");
   const [appUnlocked, setAppUnlocked] = useState(false);
   const [homeContent, setHomeContent] = useState(HOME_DEFAULT);
@@ -1595,6 +1737,21 @@ export default function App() {
   const allTips=[...WITCH_TIPS,...customTips.map(t=>t.text)];
   const allAffirm=[...AFFIRMATIONS_DAILY,...customAffirm.map(a=>a.text)];
 
+  // ✦ Auto-sauvegarde Firestore (debounced 1s)
+  useEffect(()=>{
+    if (!user || !initialLoadDone.current) return;
+    const t = setTimeout(()=>{
+      saveState(user.uid, {
+        appPin, homeContent, theme, font, sections, overrides,
+        tasks, widgets, scrapPages, journalPin, grimoireEntries,
+        shiftingNotes, astralNotes, passions, wishlist, goals,
+        gratitude, moodLog, habits, dreamLog, tarotLog, intentions,
+        customRituals, customTips, customAffirm,
+      });
+    }, 1000);
+    return ()=>clearTimeout(t);
+  }, [user, appPin, homeContent, theme, font, sections, overrides, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
+
   const themeObj = THEMES[theme];
 
   // résoudre overrides : sous-section > section > thème
@@ -1631,6 +1788,34 @@ export default function App() {
   const subTabsFor=(sec)=>SUBTABS[sec]||[];
 
   const ctx = { theme,setTheme,font,setFont,sections,setSections,activeSection,activeSub,subTabsFor,overrides,setOverrides,customRituals,setCustomRituals,customTips,setCustomTips,customAffirm,setCustomAffirm };
+
+  if (!authReady) return (
+    <div className="fixed inset-0 flex items-center justify-center" style={{background:"linear-gradient(160deg,#1a0d24,#3a2a5e)"}}>
+      <div className="text-center">
+        <div className="text-5xl animate-spin-slow inline-block">🌙</div>
+        <p className="mt-3 text-sm italic" style={{color:"#b39ac8"}}>chargement...</p>
+      </div>
+      <style>{`@keyframes spinSlow{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}.animate-spin-slow{animation:spinSlow 30s linear infinite}`}</style>
+    </div>
+  );
+
+  if (!user) return (<><AuthGate/>
+    <style>{`@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Cormorant+Garamond&display=swap');
+      @keyframes twinkle{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.3)}}
+      @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+      @keyframes spinSlow{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+      .animate-spin-slow{animation:spinSlow 30s linear infinite}`}</style>
+  </>);
+
+  if (loadingState) return (
+    <div className="fixed inset-0 flex items-center justify-center" style={{background:"linear-gradient(160deg,#1a0d24,#3a2a5e)"}}>
+      <div className="text-center">
+        <div className="text-5xl animate-spin-slow inline-block">🌙</div>
+        <p className="mt-3 text-sm italic" style={{color:"#b39ac8"}}>récupération de tes données...</p>
+      </div>
+      <style>{`@keyframes spinSlow{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}.animate-spin-slow{animation:spinSlow 30s linear infinite}`}</style>
+    </div>
+  );
 
   if (!appUnlocked) return (<><Backdrop kind="fullMoon"/><AppLock pin={appPin} setPin={setAppPin} onUnlock={()=>setAppUnlocked(true)}/>
     <style>{`@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Cormorant+Garamond&display=swap');
@@ -1689,6 +1874,7 @@ export default function App() {
               }} className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all" style={{background:activeSection===s.id?"var(--primary)":"transparent", color:activeSection===s.id?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{s.name}</button>
             ))}
             <button onClick={()=>setPanelOpen(true)} className="ml-1 sm:ml-2 p-2 rounded-full transition hover:scale-110" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><Settings size={16}/></button>
+            <button onClick={()=>{ if(confirm("Se déconnecter ?")){ logOut(); setAppUnlocked(false); } }} title="Déconnexion" className="p-2 rounded-full transition hover:scale-110" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--muted)"}}><LogOut size={14}/></button>
           </nav>
         </div>
       </header>

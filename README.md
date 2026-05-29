@@ -90,9 +90,19 @@ nyx/
 
 ## 🛠️ Aller plus loin (idées)
 
-- **Sauvegarde persistante** : remplacer les `useState` par un hook qui lit/écrit dans `localStorage`, ou brancher un backend (Supabase, Firebase).
-- **Comptes utilisateurs** pour synchroniser entre appareils.
+- **Sauvegarde persistante** ✅ déjà branchée via Firebase (voir ci-dessous).
 - **Notifications** pour les rituels et habitudes.
+- **Mode hors-ligne** (PWA + cache).
+
+---
+
+## 🔥 Firebase est déjà branché
+
+L'app utilise **Firebase Authentication** (email + Google) et **Firestore** pour sauvegarder TES données dans le cloud. Tu te connectes une fois, et tu retrouves tout sur Mac, iPhone, iPad — partout où tu ouvres l'app.
+
+La configuration Firebase est dans `src/firebase.js`. Les règles de sécurité Firestore protègent tes données : seul toi (avec ton compte) peux lire/écrire tes propres données.
+
+**Pour réutiliser le projet avec ton propre compte Firebase** : remplace les valeurs dans `src/firebase.js` par ton `firebaseConfig` (Console Firebase → Paramètres du projet → Vos applications).
 
 ---
 
