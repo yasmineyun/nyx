@@ -1655,13 +1655,13 @@ function SoftBrandBanner({ subtitle }) {
   );
 }
 function WoodPlank({ children, className="", st={} }) {
-  const bg = st.bg || "linear-gradient(180deg, #6b4a2a 0%, #4a3018 100%)";
-  const border = st.border || "2px solid #2a1810";
-  const color = st.color || "#f0d49a";
+  const bg = st.bg || "linear-gradient(180deg, var(--surface2), var(--primary))";
+  const border = st.border || "2px solid var(--accent)";
+  const color = st.color || "var(--text)";
   const radius = st.radius!==undefined ? st.radius : 8;
   return (
-    <div className={`relative inline-block px-6 py-3 ${className}`} style={{background:bg, border, boxShadow:"inset 0 0 20px rgba(0,0,0,0.4), 0 4px 0 rgba(0,0,0,0.4)", borderRadius:`${radius}px`, fontFamily:'"Dancing Script", cursive'}}>
-      <span className="text-xl" style={{color, textShadow:"1px 1px 2px #000"}}>✦ {children} ✦</span>
+    <div className={`relative inline-block px-6 py-3 ${className}`} style={{background:bg, border, boxShadow:"inset 0 0 20px rgba(0,0,0,0.25), 0 4px 0 rgba(0,0,0,0.3)", borderRadius:`${radius}px`, fontFamily:'"Dancing Script", cursive'}}>
+      <span className="text-xl" style={{color, textShadow:"1px 1px 2px rgba(0,0,0,0.5)"}}>✦ {children} ✦</span>
     </div>
   );
 }
@@ -4344,7 +4344,16 @@ export default function App() {
           // restaurer chaque morceau d'état si présent
           if (data.appPin!==undefined) setAppPin(data.appPin);
           if (data.homeContent) setHomeContent(data.homeContent);
-          if (data.witchTexts) setWitchTexts(data.witchTexts);
+          if (data.witchTexts) {
+            const wt = {...data.witchTexts};
+            // migration : si l'ancien style bois marron est encore là, le passer au thème
+            if (wt.tavernBg && wt.tavernBg.includes("#6b4a2a")) {
+              wt.tavernBg = "linear-gradient(180deg, var(--surface2), var(--primary))";
+              wt.tavernBorderColor = "var(--accent)";
+              wt.tavernColor = "var(--text)";
+            }
+            setWitchTexts(wt);
+          }
           if (data.sectionThemes) setSectionThemes(data.sectionThemes);
           else if (data.theme) setSectionThemes({ moi: data.theme, witch: data.theme });
           if (data.font) setFont(data.font);
@@ -4400,9 +4409,9 @@ export default function App() {
   const [homeContent, setHomeContent] = useState(HOME_DEFAULT);
   const [witchTexts, setWitchTexts] = useState({
     tavern: "THE WITCH'S TAVERN",
-    tavernBg: "linear-gradient(180deg, #6b4a2a 0%, #4a3018 100%)",
-    tavernBorderColor: "#2a1810",
-    tavernColor: "#f0d49a",
+    tavernBg: "linear-gradient(180deg, var(--surface2), var(--primary))",
+    tavernBorderColor: "var(--accent)",
+    tavernColor: "var(--text)",
     tavernRadius: 8,
     spellNo: "No. 13",
     spellTitle: "The Witches Spell Book",
@@ -4687,21 +4696,21 @@ export default function App() {
           <p className="text-center text-sm italic mt-3" style={{color:"var(--muted)"}}>« {pickByDate(QUOTES_WITCH,"w")} »</p>
           <Garland/>
           <div className="flex flex-nowrap sm:flex-wrap gap-2 mb-6 sm:mb-8 sm:justify-center overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:overflow-visible">{SUBTABS.witch.map(t=>{const I=t.icon;return(
-            <button key={t.k} onClick={()=>setActiveSub(t.k)} className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-all whitespace-nowrap" style={{background:activeSub===t.k?"linear-gradient(180deg,#6b4a2a,#4a3018)":"var(--surface)", color:activeSub===t.k?"#f0d49a":"var(--text)", border:activeSub===t.k?"1px solid #2a1810":"1px solid var(--border)", fontFamily:activeSub===t.k?'"Dancing Script",cursive':"inherit"}}><I size={14}/>{t.label}</button>
+            <button key={t.k} onClick={()=>setActiveSub(t.k)} className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-all whitespace-nowrap" style={{background:activeSub===t.k?"var(--primary)":"var(--surface)", color:activeSub===t.k?"var(--bg)":"var(--text)", border:activeSub===t.k?"1px solid var(--primary)":"1px solid var(--border)", fontFamily:activeSub===t.k?'"Dancing Script",cursive':"inherit"}}><I size={14}/>{t.label}</button>
           )})}</div>
 
           {activeSub==="tavern" && (<div className="grid lg:grid-cols-3 gap-6">
-            <div className="rounded-2xl p-6 text-center animate-glow" style={{background:"linear-gradient(180deg,#e8dcc0,#c9a26a)", border:"3px double #4a3018", color:"#2a1810"}}>
+            <div className="rounded-2xl p-6 text-center animate-glow" style={{background:"linear-gradient(180deg, var(--surface2), var(--primary))", border:"3px double var(--accent)", color:"var(--text)"}}>
               {witchEdit ? (<>
-                <input value={witchTexts.spellNo} onChange={e=>setWitchTexts({...witchTexts, spellNo:e.target.value})} className="text-center bg-white/30 rounded outline-none text-xs uppercase tracking-[0.3em] w-full mb-1" style={{color:"#2a1810"}}/>
-                <input value={witchTexts.spellTitle} onChange={e=>setWitchTexts({...witchTexts, spellTitle:e.target.value})} className="text-center bg-white/30 rounded outline-none text-2xl w-full" style={{color:"#2a1810", fontFamily:'"UnifrakturCook",serif'}}/>
+                <input value={witchTexts.spellNo} onChange={e=>setWitchTexts({...witchTexts, spellNo:e.target.value})} className="text-center bg-black/10 rounded outline-none text-xs uppercase tracking-[0.3em] w-full mb-1" style={{color:"var(--text)"}}/>
+                <input value={witchTexts.spellTitle} onChange={e=>setWitchTexts({...witchTexts, spellTitle:e.target.value})} className="text-center bg-black/10 rounded outline-none text-2xl w-full" style={{color:"var(--text)", fontFamily:'"UnifrakturCook",serif'}}/>
               </>) : (<>
                 <p className="text-xs uppercase tracking-[0.3em]">{witchTexts.spellNo}</p>
                 <h3 className="text-3xl mt-2" style={{fontFamily:'"UnifrakturCook",serif'}}>{witchTexts.spellTitle}</h3>
               </>)}
               <div className="my-4 text-6xl">📖</div>
               {witchEdit
-                ? <input value={witchTexts.spellSub} onChange={e=>setWitchTexts({...witchTexts, spellSub:e.target.value})} className="text-center bg-white/30 rounded outline-none text-[10px] uppercase tracking-widest w-full" style={{color:"#2a1810"}}/>
+                ? <input value={witchTexts.spellSub} onChange={e=>setWitchTexts({...witchTexts, spellSub:e.target.value})} className="text-center bg-black/10 rounded outline-none text-[10px] uppercase tracking-widest w-full" style={{color:"var(--text)"}}/>
                 : <p className="text-[10px] uppercase tracking-widest">{witchTexts.spellSub}</p>}
             </div>
             <div className="rounded-2xl p-6 flex flex-col items-center justify-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
@@ -4709,7 +4718,7 @@ export default function App() {
             </div>
             <div className="rounded-2xl p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
               <div className="text-center mb-3"><WoodPlank>IDEAS</WoodPlank></div>
-              <ul className="space-y-1 text-sm">{["rituel à tester","livre à lire","cristal à acheter","lieu à visiter"].map((l,i)=>(<li key={i} className="px-3 py-1.5 rounded" style={{background:"rgba(106,74,42,0.2)", color:"var(--text)"}}>◦ {l}</li>))}</ul>
+              <ul className="space-y-1 text-sm">{["rituel à tester","livre à lire","cristal à acheter","lieu à visiter"].map((l,i)=>(<li key={i} className="px-3 py-1.5 rounded" style={{background:"var(--surface2)", color:"var(--text)"}}>◦ {l}</li>))}</ul>
             </div>
             <div className="lg:col-span-3 rounded-2xl p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
               <div className="grid md:grid-cols-3 gap-6">
