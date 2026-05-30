@@ -29,6 +29,19 @@ const BACKDROPS = {
   embers:      { name: "Braises de feu", emoji: "🔥" },
   snow:        { name: "Neige feutrée", emoji: "❄️" },
   butterflies: { name: "Papillons", emoji: "🦋" },
+  hearts:      { name: "Cœurs flottants", emoji: "🩷" },
+  sparkstars:  { name: "Étoiles filantes", emoji: "🌠" },
+  fireflies:   { name: "Lucioles d'été", emoji: "🪲" },
+  bubbles:     { name: "Bulles douces", emoji: "🫧" },
+  cherry:      { name: "Cerisiers en fleur", emoji: "🌸" },
+  leaves:      { name: "Feuilles d'automne", emoji: "🍂" },
+  music:       { name: "Notes de musique", emoji: "🎵" },
+  candles:     { name: "Bougies vacillantes", emoji: "🕯️" },
+  cosmic:      { name: "Galaxie cosmique", emoji: "🪐" },
+  ocean:       { name: "Vagues océan", emoji: "🌊" },
+  rainbow:     { name: "Brume arc-en-ciel", emoji: "🌈" },
+  moths:       { name: "Phalènes de nuit", emoji: "🦋" },
+  glitter:     { name: "Paillettes Y2K", emoji: "💖" },
 };
 
 /* ============================================================
@@ -75,6 +88,80 @@ const THEMES = {
     vars: { "--bg":"#3a2a5e","--bg2":"#5a3a8a","--surface":"rgba(255,255,255,0.12)","--surface2":"rgba(180,140,220,0.2)","--border":"rgba(255,200,240,0.4)","--text":"#fbeaff","--muted":"#d4b0e8","--primary":"#ff9ed8","--accent":"#9ae8ff","--ink":"#fbeaff","--paper":"#5a3a8a","--rose":"#ff9ed8","--sage":"#9ae8c8","--glow":"255,158,216" },
     backdrop: "dreamy", universe: "witch",
   },
+
+  /* ===== Nouveaux thèmes SOFT (Yasmine) ===== */
+  peach: {
+    name: "✿ Pêche & Abricot", icon: Flower2,
+    vars: { "--bg":"#fff1e8","--bg2":"#ffe0cc","--surface":"rgba(255,255,255,0.6)","--surface2":"rgba(255,210,180,0.4)","--border":"rgba(220,140,100,0.28)","--text":"#5a3526","--muted":"#a8755a","--primary":"#f0a878","--accent":"#e88a9a","--ink":"#4a2818","--paper":"#fffaf5","--rose":"#f5c5a8","--sage":"#d8c8a0","--glow":"240,168,120" },
+    backdrop: "petals", universe: "soft",
+  },
+  lavender: {
+    name: "✿ Lavande Douce", icon: Flower2,
+    vars: { "--bg":"#f3eefa","--bg2":"#e6dcf5","--surface":"rgba(255,255,255,0.6)","--surface2":"rgba(210,190,235,0.4)","--border":"rgba(150,120,200,0.26)","--text":"#3e2f55","--muted":"#8a72a8","--primary":"#b39ad8","--accent":"#d8a8c8","--ink":"#2e1f42","--paper":"#faf7fe","--rose":"#e0c8e8","--sage":"#c8c0e0","--glow":"179,154,216" },
+    backdrop: "butterflies", universe: "soft",
+  },
+  mint: {
+    name: "✿ Menthe Fraîche", icon: Leaf,
+    vars: { "--bg":"#e8f5ef","--bg2":"#d4ece0","--surface":"rgba(255,255,255,0.6)","--surface2":"rgba(180,225,205,0.4)","--border":"rgba(90,170,140,0.26)","--text":"#274039","--muted":"#5f8a7a","--primary":"#7ac8a8","--accent":"#e8b8a0","--ink":"#1a322a","--paper":"#f4fbf7","--rose":"#e8cdc8","--sage":"#a8d8c0","--glow":"122,200,168" },
+    backdrop: "cottage", universe: "soft",
+  },
+  butter: {
+    name: "✿ Beurre & Vanille", icon: Sun,
+    vars: { "--bg":"#fdf6e3","--bg2":"#f8ecca","--surface":"rgba(255,255,255,0.6)","--surface2":"rgba(245,225,165,0.4)","--border":"rgba(200,170,90,0.26)","--text":"#4a3f1e","--muted":"#9a8550","--primary":"#e8c870","--accent":"#c8a878","--ink":"#3a3010","--paper":"#fffdf2","--rose":"#f0dca8","--sage":"#d8d0a0","--glow":"232,200,112" },
+    backdrop: "dust", universe: "soft",
+  },
+  cherry: {
+    name: "✿ Cerise & Crème", icon: Heart,
+    vars: { "--bg":"#fdeef0","--bg2":"#fad6dd","--surface":"rgba(255,255,255,0.65)","--surface2":"rgba(245,190,200,0.4)","--border":"rgba(200,90,110,0.28)","--text":"#5a2530","--muted":"#a86875","--primary":"#e87a90","--accent":"#c85a6a","--ink":"#42161e","--paper":"#fffafb","--rose":"#f5b8c2","--sage":"#e0cdc0","--glow":"232,122,144" },
+    backdrop: "petals", universe: "soft",
+  },
+  sky: {
+    name: "✿ Ciel & Coton", icon: CloudMoon,
+    vars: { "--bg":"#eef5fb","--bg2":"#d8e8f5","--surface":"rgba(255,255,255,0.6)","--surface2":"rgba(190,220,245,0.4)","--border":"rgba(100,150,200,0.26)","--text":"#27384a","--muted":"#6a85a0","--primary":"#8ac0e8","--accent":"#e8b8c8","--ink":"#1a2838","--paper":"#f6fafe","--rose":"#e8cdd8","--sage":"#bcd4e8","--glow":"138,192,232" },
+    backdrop: "snow", universe: "soft",
+  },
+  terracotta: {
+    name: "✿ Terracotta Bohème", icon: Sun,
+    vars: { "--bg":"#f7ece2","--bg2":"#ecd4c0","--surface":"rgba(255,255,255,0.55)","--surface2":"rgba(220,180,150,0.4)","--border":"rgba(180,110,70,0.28)","--text":"#4e2f1e","--muted":"#9a6f50","--primary":"#c87a52","--accent":"#9aa878","--ink":"#3a2014","--paper":"#fcf6ef","--rose":"#e0b095","--sage":"#bcc09a","--glow":"200,122,82" },
+    backdrop: "aurora", universe: "soft",
+  },
+
+  /* ===== Nouveaux thèmes WITCH (Yasmeen) ===== */
+  bloodMoon: {
+    name: "☾ Lune de Sang", icon: Moon,
+    vars: { "--bg":"#1a0808","--bg2":"#2e0f0f","--surface":"rgba(180,40,40,0.10)","--surface2":"rgba(80,20,20,0.5)","--border":"rgba(200,80,80,0.3)","--text":"#f5d8d0","--muted":"#c08a82","--primary":"#c0392b","--accent":"#e0a060","--ink":"#3a1010","--paper":"#e8d0c0","--rose":"#8a2a2a","--sage":"#6a5040","--glow":"192,57,43" },
+    backdrop: "embers", universe: "witch",
+  },
+  forestWitch: {
+    name: "☾ Sorcière des Bois", icon: Leaf,
+    vars: { "--bg":"#0f1a12","--bg2":"#18281c","--surface":"rgba(80,140,90,0.10)","--surface2":"rgba(30,55,38,0.5)","--border":"rgba(120,180,120,0.28)","--text":"#dceadc","--muted":"#88a888","--primary":"#6a9a5a","--accent":"#c8a86a","--ink":"#15281a","--paper":"#e0e8d4","--rose":"#7a8a5a","--sage":"#5a7a4a","--glow":"106,154,90" },
+    backdrop: "forest", universe: "witch",
+  },
+  cosmicWitch: {
+    name: "☾ Sorcière Cosmique", icon: Stars,
+    vars: { "--bg":"#0a0e2a","--bg2":"#141a44","--surface":"rgba(120,140,255,0.10)","--surface2":"rgba(40,50,110,0.5)","--border":"rgba(140,160,255,0.3)","--text":"#e0e6ff","--muted":"#9aa8d8","--primary":"#7a8aff","--accent":"#e0c060","--ink":"#1a2050","--paper":"#dce0f5","--rose":"#6a5aaa","--sage":"#5a6a9a","--glow":"122,138,255" },
+    backdrop: "aurora", universe: "witch",
+  },
+  oceanWitch: {
+    name: "☾ Sorcière des Mers", icon: CloudMoon,
+    vars: { "--bg":"#06181f","--bg2":"#0d2a34","--surface":"rgba(60,160,180,0.10)","--surface2":"rgba(20,60,72,0.5)","--border":"rgba(90,190,210,0.3)","--text":"#d4eef2","--muted":"#7aaeba","--primary":"#3aa0b8","--accent":"#c8b07a","--ink":"#0a2832","--paper":"#d0e8ec","--rose":"#5a8a9a","--sage":"#4a8070","--glow":"58,160,184" },
+    backdrop: "rain", universe: "witch",
+  },
+  noir: {
+    name: "☾ Noir & Argent", icon: Moon,
+    vars: { "--bg":"#101012","--bg2":"#1c1c20","--surface":"rgba(200,200,210,0.07)","--surface2":"rgba(50,50,58,0.5)","--border":"rgba(180,180,200,0.25)","--text":"#e8e8ee","--muted":"#9a9aa8","--primary":"#b0b0c0","--accent":"#c8a86a","--ink":"#28282e","--paper":"#dcdce2","--rose":"#8a8a9a","--sage":"#6a6a7a","--glow":"176,176,192" },
+    backdrop: "starry", universe: "witch",
+  },
+  emerald: {
+    name: "☾ Émeraude Mystique", icon: Gem,
+    vars: { "--bg":"#0a1a14","--bg2":"#0f2a20","--surface":"rgba(40,180,120,0.10)","--surface2":"rgba(20,60,45,0.5)","--border":"rgba(80,200,140,0.3)","--text":"#d4f0e2","--muted":"#7ab89a","--primary":"#2aa878","--accent":"#d4b860","--ink":"#0a2818","--paper":"#d0ecde","--rose":"#5a9a7a","--sage":"#4a8060","--glow":"42,168,120" },
+    backdrop: "vines", universe: "witch",
+  },
+  rosewitch: {
+    name: "☾ Sorcière Rose Antique", icon: Flower2,
+    vars: { "--bg":"#1f0f18","--bg2":"#331826","--surface":"rgba(200,100,150,0.10)","--surface2":"rgba(80,40,60,0.5)","--border":"rgba(220,140,180,0.3)","--text":"#f5dce8","--muted":"#c890aa","--primary":"#c0608a","--accent":"#e0b070","--ink":"#3a1828","--paper":"#ecd0dc","--rose":"#a04a6a","--sage":"#7a5a6a","--glow":"192,96,138" },
+    backdrop: "petals", universe: "witch",
+  },
 };
 
 const FONTS = {
@@ -85,6 +172,25 @@ const FONTS = {
   y2k: { name: "Y2K Futur", stack: '"Major Mono Display", monospace' },
   gothic: { name: "Gothique", stack: '"UnifrakturCook", serif' },
   cute: { name: "Mignon arrondi", stack: '"Caveat", cursive' },
+  // ✦ nouvelles polices aesthetic
+  playfair: { name: "Playfair élégant", stack: '"Playfair Display", serif' },
+  cormorantUp: { name: "Cormorant Majuscules", stack: '"Cormorant SC", serif' },
+  ebGaramond: { name: "Garamond classique", stack: '"EB Garamond", serif' },
+  italiana: { name: "Italiana chic", stack: '"Italiana", serif' },
+  marcellus: { name: "Marcellus raffiné", stack: '"Marcellus", serif' },
+  cinzelDeco: { name: "Cinzel Décoratif", stack: '"Cinzel Decorative", serif' },
+  greatVibes: { name: "Calligraphie", stack: '"Great Vibes", cursive' },
+  parisienne: { name: "Parisienne", stack: '"Parisienne", cursive' },
+  sacramento: { name: "Sacramento fin", stack: '"Sacramento", cursive' },
+  pinyon: { name: "Pinyon royal", stack: '"Pinyon Script", cursive' },
+  homemade: { name: "Écriture main", stack: '"Homemade Apple", cursive' },
+  shadows: { name: "Crayon doux", stack: '"Shadows Into Light", cursive' },
+  gloock: { name: "Gloock moderne", stack: '"Gloock", serif' },
+  spaceMono: { name: "Mono futur", stack: '"Space Mono", monospace' },
+  pixelify: { name: "Pixel Y2K", stack: '"Pixelify Sans", monospace' },
+  monoton: { name: "Néon rétro", stack: '"Monoton", cursive' },
+  yeseva: { name: "Yeseva doux", stack: '"Yeseva One", serif' },
+  amatic: { name: "Amatic fin", stack: '"Amatic SC", cursive' },
 };
 
 /* ============================================================
@@ -348,6 +454,200 @@ function Backdrop({ kind }) {
     );
   }
 
+  if (kind === "hearts") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(16, i=>(
+          <span key={i} className="absolute" style={{
+            bottom:"-5%", left:`${Math.random()*100}%`, fontSize:`${12+Math.random()*16}px`, opacity:0.5,
+            animation:`emberRise ${8+Math.random()*8}s linear infinite`, animationDelay:`${Math.random()*6}s`
+          }}>{["🩷","💗","💕","🤍","♡"][i%5]}</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "sparkstars") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(40, i=>(
+          <span key={i} className="absolute rounded-full" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`, width:"2px", height:"2px",
+            background:"#fff", opacity:0.5, animation:`twinkle ${2+Math.random()*3}s ease-in-out infinite`
+          }}/>
+        ))}
+        {dots(5, i=>(
+          <span key={"s"+i} className="absolute" style={{
+            top:`${Math.random()*40}%`, left:`-10%`, fontSize:"20px", opacity:0.9,
+            animation:`flyAcross ${5+Math.random()*5}s linear infinite`, animationDelay:`${i*3}s`
+          }}>🌠</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "fireflies") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(28, i=>(
+          <span key={i} className="absolute rounded-full" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`,
+            width:`${3+Math.random()*3}px`, height:`${3+Math.random()*3}px`,
+            background:"#eaff80", boxShadow:"0 0 10px 2px #d0ff60", opacity:0.8,
+            animation:`floatY ${6+Math.random()*6}s ease-in-out infinite, twinkle ${2+Math.random()*2}s ease-in-out infinite`,
+            animationDelay:`${Math.random()*4}s`
+          }}/>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "bubbles") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(20, i=>{const sz=8+Math.random()*30; return (
+          <span key={i} className="absolute rounded-full" style={{
+            bottom:"-10%", left:`${Math.random()*100}%`, width:`${sz}px`, height:`${sz}px`,
+            background:"radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.1))",
+            border:"1px solid rgba(255,255,255,0.3)", opacity:0.5,
+            animation:`emberRise ${10+Math.random()*10}s linear infinite`, animationDelay:`${Math.random()*8}s`
+          }}/>
+        );})}
+      </div>
+    );
+  }
+  if (kind === "cherry") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(18, i=>(
+          <span key={i} className="absolute" style={{
+            top:"-5%", left:`${Math.random()*100}%`, fontSize:`${12+Math.random()*14}px`, opacity:0.6,
+            animation:`fall ${14+Math.random()*12}s linear infinite`, animationDelay:`${Math.random()*12}s`
+          }}>{["🌸","🌸","🌷","❀"][i%4]}</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "leaves") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(16, i=>(
+          <span key={i} className="absolute" style={{
+            top:"-5%", left:`${Math.random()*100}%`, fontSize:`${14+Math.random()*14}px`, opacity:0.6,
+            animation:`fall ${12+Math.random()*10}s linear infinite`, animationDelay:`${Math.random()*10}s`
+          }}>{["🍂","🍁","🍃"][i%3]}</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "music") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(16, i=>(
+          <span key={i} className="absolute" style={{
+            bottom:"-5%", left:`${Math.random()*100}%`, fontSize:`${14+Math.random()*14}px`, opacity:0.4,
+            color:"var(--accent)",
+            animation:`emberRise ${9+Math.random()*7}s linear infinite`, animationDelay:`${Math.random()*6}s`
+          }}>{["♪","♫","🎵","🎶"][i%4]}</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "candles") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute inset-0" style={{background:"radial-gradient(ellipse at 50% 100%, rgba(255,180,80,0.12), transparent 60%)"}}/>
+        {dots(20, i=>(
+          <span key={i} className="absolute rounded-full" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`,
+            width:`${3+Math.random()*3}px`, height:`${4+Math.random()*4}px`,
+            background:"#ffb84d", boxShadow:"0 0 8px 2px #ff9a3c", opacity:0.7,
+            animation:`floatY ${5+Math.random()*4}s ease-in-out infinite, twinkle ${1.5+Math.random()*2}s ease-in-out infinite`,
+            animationDelay:`${Math.random()*3}s`
+          }}/>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "cosmic") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute inset-0" style={{background:"radial-gradient(ellipse at 70% 30%, rgba(140,100,220,0.18), transparent 55%), radial-gradient(ellipse at 30% 70%, rgba(80,140,220,0.15), transparent 55%)"}}/>
+        {dots(70, i=>(
+          <span key={i} className="absolute rounded-full" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`,
+            width:`${1+Math.random()*2}px`, height:`${1+Math.random()*2}px`,
+            background:"#fff", opacity:0.3+Math.random()*0.5,
+            animation:`twinkle ${2+Math.random()*4}s ease-in-out infinite`, animationDelay:`${Math.random()*3}s`
+          }}/>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "ocean") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute inset-x-0 bottom-0 h-1/3" style={{
+          background:"linear-gradient(transparent, rgba(80,160,200,0.2))",
+          animation:"auroraShift 8s ease-in-out infinite"
+        }}/>
+        {dots(20, i=>(
+          <span key={i} className="absolute rounded-full" style={{
+            bottom:`${Math.random()*30}%`, left:`${Math.random()*100}%`,
+            width:`${4+Math.random()*6}px`, height:`${4+Math.random()*6}px`,
+            background:"rgba(200,240,255,0.4)", filter:"blur(1px)",
+            animation:`floatY ${6+Math.random()*5}s ease-in-out infinite`, animationDelay:`${Math.random()*4}s`
+          }}/>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "rainbow") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute inset-0" style={{
+          background:"linear-gradient(120deg, rgba(255,150,200,0.12), rgba(255,220,150,0.12), rgba(150,255,200,0.12), rgba(150,200,255,0.12), rgba(220,150,255,0.12))",
+          backgroundSize:"300% 300%", animation:"holoShift 12s ease infinite"
+        }}/>
+        {dots(20, i=>(
+          <span key={i} className="absolute" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`, fontSize:`${8+Math.random()*12}px`, opacity:0.4,
+            animation:`floatY ${6+Math.random()*6}s ease-in-out infinite`, animationDelay:`${Math.random()*3}s`
+          }}>{["✦","☆","✧"][i%3]}</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "moths") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(8, i=>(
+          <span key={i} className="absolute" style={{
+            top:`${Math.random()*80}%`, left:`-5%`, fontSize:`${16+Math.random()*12}px`, opacity:0.4,
+            filter:"grayscale(1) brightness(1.4)",
+            animation:`flyAcross ${14+Math.random()*12}s linear infinite`, animationDelay:`${i*2}s`
+          }}>🦋</span>
+        ))}
+        {dots(20, i=>(
+          <span key={"d"+i} className="absolute rounded-full" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`, width:"2px", height:"2px",
+            background:"#e8e8d0", opacity:0.4, animation:`twinkle ${3+Math.random()*3}s ease-in-out infinite`
+          }}/>
+        ))}
+      </div>
+    );
+  }
+  if (kind === "glitter") {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(45, i=>(
+          <span key={i} className="absolute" style={{
+            top:`${Math.random()*100}%`, left:`${Math.random()*100}%`,
+            fontSize:`${8+Math.random()*12}px`, opacity:0.5,
+            animation:`twinkle ${1.5+Math.random()*2.5}s ease-in-out infinite`, animationDelay:`${Math.random()*3}s`
+          }}>{["✨","💖","⭐","💗","✦"][i%5]}</span>
+        ))}
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -531,11 +831,55 @@ function MoonClock({ compact }) {
 }
 
 /* ============================================================
+   ✦ PINTEREST — embed officiel d'une épingle
+   ============================================================ */
+let _pinScriptLoaded = false;
+function loadPinterestScript() {
+  return new Promise((resolve)=>{
+    if (_pinScriptLoaded && window.PinUtils) return resolve();
+    const existing = document.getElementById("pinit-js");
+    if (existing) { _pinScriptLoaded = true; return resolve(); }
+    const s = document.createElement("script");
+    s.id = "pinit-js"; s.async = true; s.defer = true;
+    s.src = "https://assets.pinterest.com/js/pinit.js";
+    s.setAttribute("data-pin-build", "doBuild");
+    s.onload = ()=>{ _pinScriptLoaded = true; resolve(); };
+    document.body.appendChild(s);
+  });
+}
+
+function PinterestPin({ url, size="medium" }) {
+  const ref = useRef(null);
+  // détecter si c'est une image directe (i.pinimg.com) ou une épingle
+  const isDirectImg = /i\.pinimg\.com|\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url||"");
+  useEffect(()=>{
+    if (isDirectImg || !url) return;
+    let cancelled = false;
+    loadPinterestScript().then(()=>{
+      if (cancelled) return;
+      // PinUtils.build re-scanne la page et rend les épingles
+      if (window.PinUtils && window.PinUtils.build) {
+        try { window.PinUtils.build(); } catch(e){}
+      }
+    });
+    return ()=>{ cancelled = true; };
+  }, [url, isDirectImg]);
+
+  if (!url) return <div className="text-xs italic" style={{color:"var(--muted)"}}>colle un lien Pinterest ↓</div>;
+  if (isDirectImg) return <img src={url} alt="" className="w-full rounded-xl object-cover" style={{border:"3px solid #fff"}}/>;
+  return (
+    <div ref={ref} className="flex justify-center" key={url}>
+      <a data-pin-do="embedPin" data-pin-width={size} href={url}>épingle Pinterest</a>
+    </div>
+  );
+}
+
+/* ============================================================
    ✦ WIDGETS
    ============================================================ */
 // Widget flottant : déplaçable (⠿) et redimensionnable (↘) dans la zone de la section
 function Widget({ widget, onUpdate, onDelete }) {
-  const Icon = { gif:ImageIcon, image:ImageIcon, quote:Quote, sticky:StickyNote, playlist:Music, clock:Clock }[widget.type] || Sparkles;
+  const Icon = { gif:ImageIcon, image:ImageIcon, quote:Quote, sticky:StickyNote, playlist:Music, clock:Clock, pinterest:ImageIcon }[widget.type] || Sparkles;
   const ref = useRef(null);
   const drag = useRef(null);
 
@@ -564,7 +908,7 @@ function Widget({ widget, onUpdate, onDelete }) {
   const onUp = () => { drag.current=null; window.removeEventListener("pointermove",onMove); window.removeEventListener("pointerup",onUp); };
 
   return (
-    <div ref={ref} className="absolute group" style={{ left:`${widget.x||4}%`, top:`${widget.y||4}%`, width:`${widget.w||24}%`, minWidth:"150px", zIndex:2 }}>
+    <div ref={ref} className="absolute group pointer-events-auto" style={{ left:`${widget.x||4}%`, top:`${widget.y||4}%`, width:`${widget.w||24}%`, minWidth:"150px", zIndex:2 }}>
       <div className="relative rounded-2xl p-4 backdrop-blur-md" style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:`0 8px 32px rgba(var(--glow),0.12)` }}>
         {/* poignée + suppr */}
         <div className="absolute -top-3 -left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition z-10">
@@ -592,6 +936,11 @@ function Widget({ widget, onUpdate, onDelete }) {
             <div className="text-xs italic" style={{color:"var(--muted)"}}>{widget.content ? <a href={widget.content} target="_blank" rel="noreferrer" className="underline">Ouvrir le lien</a> : "Colle un lien Spotify ↓"}</div>}
           <input value={widget.content||""} onChange={e=>onUpdate({...widget, content:e.target.value})} placeholder="lien Spotify / SoundCloud"
             className="mt-2 w-full bg-transparent text-xs outline-none border-b py-1" style={{borderColor:"var(--border)", color:"var(--text)"}}/></>)}
+        {widget.type==="pinterest" && (<>
+          <PinterestPin url={widget.content}/>
+          <input value={widget.content||""} onChange={e=>onUpdate({...widget, content:e.target.value})} placeholder="lien épingle Pinterest"
+            className="mt-2 w-full bg-transparent text-xs outline-none border-b py-1" style={{borderColor:"var(--border)", color:"var(--text)"}}/>
+          <p className="text-[9px] italic mt-1" style={{color:"var(--muted)"}}>colle le lien d'une épingle (pinterest.com/pin/...) ou l'adresse d'image</p></>)}
 
         <button onPointerDown={startResize} className="absolute -bottom-2 -right-2 w-4 h-4 rounded-full opacity-0 group-hover:opacity-100 cursor-se-resize" style={{background:"var(--accent)", border:"1px solid var(--bg)"}}/>
       </div>
@@ -749,7 +1098,7 @@ function ScrapbookEditor({ pages, setPages }) {
           <input type="date" value={current.date} onChange={e=>updatePage({date:e.target.value})} className="bg-transparent outline-none text-xs" style={{color:"var(--muted)"}}/>
           {current.format!=="note" && (
             <div className="flex gap-1">
-              {[{t:"title",i:TypeIcon,l:"Titre"},{t:"text",i:AlignLeft,l:"Texte"},{t:"image",i:ImageIcon,l:"Image"},{t:"gif",i:Sparkles,l:"Gif"},{t:"music",i:Music,l:"Musique"},{t:"sticker",i:Star,l:"Sticker"}].map(b=>{const I=b.i;return(
+              {[{t:"title",i:TypeIcon,l:"Titre"},{t:"text",i:AlignLeft,l:"Texte"},{t:"image",i:ImageIcon,l:"Image"},{t:"gif",i:Sparkles,l:"Gif"},{t:"pinterest",i:ImageIcon,l:"📌"},{t:"music",i:Music,l:"Musique"},{t:"sticker",i:Star,l:"Sticker"}].map(b=>{const I=b.i;return(
                 <button key={b.t} onClick={()=>addBlock(b.t)} title={b.l} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition hover:scale-105"
                   style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={10}/><I size={12}/></button>
               )})}
@@ -859,6 +1208,13 @@ function ScrapBlock({ block, onChange, onDelete }) {
               className="mt-1 w-full bg-transparent text-[10px] outline-none border-b py-0.5" style={{borderColor:"var(--border)", color:"var(--ink)"}}/>
           </div>
         )}
+        {block.type==="pinterest" && (
+          <div className="rounded-lg p-1" style={{background:"rgba(255,255,255,0.6)", border:"1px solid var(--border)"}}>
+            <PinterestPin url={block.content}/>
+            <input value={block.content||""} onChange={e=>onChange({content:e.target.value})} placeholder="lien épingle Pinterest"
+              className="mt-1 w-full bg-transparent text-[10px] outline-none border-b py-0.5" style={{borderColor:"var(--border)", color:"var(--ink)"}}/>
+          </div>
+        )}
         {block.type==="sticker" && (
           <div className="flex flex-col items-center">
             <span style={{fontSize:"clamp(28px,6vw,54px)"}}>{block.content||"✦"}</span>
@@ -881,55 +1237,227 @@ function ScrapBlock({ block, onChange, onDelete }) {
 /* ============================================================
    ✦ CARD LIST générique
    ============================================================ */
-function CardList({ items, setItems, title, fields }) {
-  const [editing, setEditing] = useState(null);
-  const blank = useMemo(()=>Object.fromEntries(fields.map(f=>[f.k,""])), [fields]);
-  const [draft, setDraft] = useState(blank);
-  const save = () => {
-    if (editing==="new") setItems([{id:uid(),...draft},...items]);
-    else setItems(items.map(i=>i.id===editing?{...i,...draft}:i));
-    setEditing(null); setDraft(blank);
+/* ============================================================
+   ✦ PASSIONS — fiche auto-remplie depuis un lien (Wikipedia)
+   ============================================================ */
+async function fetchFromLink(url) {
+  // Wikipedia : API REST avec CORS ouvert → titre, résumé, image
+  try {
+    const wiki = url.match(/https?:\/\/([a-z]{2})\.(?:m\.)?wikipedia\.org\/wiki\/([^?#]+)/i);
+    if (wiki) {
+      const lang = wiki[1];
+      const title = decodeURIComponent(wiki[2]);
+      const res = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${title}`);
+      if (res.ok) {
+        const d = await res.json();
+        return {
+          title: d.title || title.replace(/_/g," "),
+          note: d.extract || "",
+          image: d.thumbnail?.source || d.originalimage?.source || "",
+          ok: true,
+        };
+      }
+    }
+  } catch (e) { /* CORS ou réseau */ }
+  return { ok:false };
+}
+
+function PassionsList({ items, setItems }) {
+  const [openId, setOpenId] = useState(null);
+  const [linkInput, setLinkInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const open = items.find(i=>i.id===openId);
+
+  const addFromLink = async () => {
+    if (!linkInput.trim()) return;
+    setLoading(true); setMsg("");
+    const data = await fetchFromLink(linkInput.trim());
+    setLoading(false);
+    const it = {
+      id: uid(), created: new Date().toISOString().slice(0,10),
+      title: data.ok ? data.title : "",
+      type: "", status: "à voir", rating: "",
+      note: data.ok ? data.note : "",
+      image: data.ok ? data.image : "",
+      link: linkInput.trim(),
+      myReview: "",
+    };
+    setItems([it, ...items]);
+    setLinkInput("");
+    setOpenId(it.id);
+    if (!data.ok) setMsg("Lien ajouté. Le remplissage auto marche surtout avec Wikipedia — pour les autres sites, complète à la main 🌙");
   };
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-2xl" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}>{title}</h3>
-        <button onClick={()=>{setEditing("new"); setDraft(blank);}} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> Ajouter</button>
+  const addBlank = () => { const it = {id:uid(), created:new Date().toISOString().slice(0,10), title:"", type:"", status:"à voir", rating:"", note:"", image:"", link:"", myReview:""}; setItems([it,...items]); setOpenId(it.id); };
+  const update = (id,patch)=>setItems(items.map(i=>i.id===id?{...i,...patch}:i));
+  const del = (id)=>{ if(confirm("Supprimer cette fiche ?")){ setItems(items.filter(i=>i.id!==id)); setOpenId(null); } };
+  const refetch = async (it) => {
+    if(!it.link) return;
+    setLoading(true);
+    const data = await fetchFromLink(it.link);
+    setLoading(false);
+    if (data.ok) update(it.id, { title: it.title||data.title, note: data.note, image: it.image||data.image });
+    else setMsg("Remplissage auto indisponible pour ce lien (essaie un lien Wikipedia).");
+  };
+
+  /* ---- PAGE DÉTAIL ---- */
+  if (open) return (
+    <div className="animate-fade-up">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <button onClick={()=>setOpenId(null)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour</button>
+        <button onClick={()=>del(open.id)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}><Trash2 size={12} className="inline mr-1"/>supprimer</button>
+        {open.link && <button onClick={()=>refetch(open)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--accent)"}}>{loading?"⏳":"↻"} re-remplir depuis le lien</button>}
       </div>
-      {editing && (
-        <div className="rounded-2xl p-6 mb-4 animate-fade-up" style={{background:"var(--surface)", border:"1px solid var(--primary)"}}>
-          {fields.map(f=>(
-            <div key={f.k} className="mb-3">
-              <label className="text-xs uppercase tracking-widest" style={{color:"var(--muted)"}}>{f.label}</label>
-              {f.multi ?
-                <textarea value={draft[f.k]||""} onChange={e=>setDraft({...draft,[f.k]:e.target.value})} rows={f.big?6:3} className="mt-1 w-full px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/> :
-                <input value={draft[f.k]||""} onChange={e=>setDraft({...draft,[f.k]:e.target.value})} className="mt-1 w-full px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>}
+      <div className="rounded-3xl overflow-hidden" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <div className="md:flex">
+          <div className="md:w-1/3 p-5">
+            {open.image
+              ? <img src={open.image} alt="" className="w-full rounded-xl object-cover" style={{maxHeight:"360px"}}/>
+              : <div className="w-full rounded-xl flex items-center justify-center text-5xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>🎬</div>}
+            <input value={open.image||""} onChange={e=>update(open.id,{image:e.target.value})} placeholder="URL couverture"
+              className="mt-2 w-full text-xs px-2 py-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          </div>
+          <div className="md:w-2/3 p-5 space-y-3">
+            <input value={open.title||""} onChange={e=>update(open.id,{title:e.target.value})} placeholder="Titre"
+              className="w-full text-3xl bg-transparent outline-none" style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}/>
+            <div className="grid grid-cols-3 gap-2">
+              <input value={open.type||""} onChange={e=>update(open.id,{type:e.target.value})} placeholder="Type (film, anime...)" className="text-sm px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+              <select value={open.status||""} onChange={e=>update(open.id,{status:e.target.value})} className="text-sm px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
+                <option style={{background:"var(--bg2)"}} value="à voir">à voir</option>
+                <option style={{background:"var(--bg2)"}} value="en cours">en cours</option>
+                <option style={{background:"var(--bg2)"}} value="terminé">terminé</option>
+                <option style={{background:"var(--bg2)"}} value="favori">favori ⭐</option>
+              </select>
+              <input value={open.rating||""} onChange={e=>update(open.id,{rating:e.target.value})} placeholder="Note /10" className="text-sm px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
             </div>
-          ))}
-          <div className="flex gap-2">
-            <button onClick={save} className="px-4 py-2 rounded-lg text-sm flex items-center gap-2" style={{background:"var(--primary)", color:"var(--bg)"}}><Save size={14}/>Enregistrer</button>
-            <button onClick={()=>setEditing(null)} className="px-4 py-2 rounded-lg text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>Annuler</button>
+            <input value={open.link||""} onChange={e=>update(open.id,{link:e.target.value})} placeholder="Lien (Wikipedia...)" className="w-full text-xs px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--accent)"}}/>
+            <div>
+              <label className="text-xs uppercase tracking-widest" style={{color:"var(--muted)"}}>Résumé (auto)</label>
+              <textarea value={open.note||""} onChange={e=>update(open.id,{note:e.target.value})} rows={4} placeholder="Résumé récupéré depuis le lien..." className="mt-1 w-full px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-widest" style={{color:"var(--accent)"}}>★ Mon avis</label>
+              <textarea value={open.myReview||""} onChange={e=>update(open.id,{myReview:e.target.value})} rows={6} placeholder="Ce que j'en ai pensé..." className="mt-1 w-full px-3 py-3 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", fontFamily:'"Caveat", cursive', fontSize:"18px", lineHeight:"28px"}}/>
+            </div>
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+
+  /* ---- LISTE ---- */
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}>Anime · Films · K-Dramas · Livres</h3>
+        <button onClick={addBlank} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/> Vide</button>
+      </div>
+
+      {/* barre lien auto */}
+      <div className="rounded-2xl p-4 mb-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <p className="text-xs italic mb-2" style={{color:"var(--muted)"}}>Colle un lien (Wikipedia de préférence) → la fiche se remplit toute seule (titre, résumé, couverture). Puis ajoute ton avis ✦</p>
+        <div className="flex gap-2">
+          <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()}
+            placeholder="https://fr.wikipedia.org/wiki/..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <button onClick={addFromLink} disabled={loading} className="px-4 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"⏳":"✦ Remplir"}</button>
+        </div>
+        {msg && <p className="text-xs mt-2" style={{color:"var(--accent)"}}>{msg}</p>}
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map(i=>(
+          <button key={i.id} onClick={()=>setOpenId(i.id)} className="group text-left rounded-2xl overflow-hidden transition hover:scale-[1.02]" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            <div className="relative" style={{aspectRatio:"3/4"}}>
+              {i.image ? <img src={i.image} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-4xl" style={{background:"var(--surface2)"}}>🎬</div>}
+              {i.status && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px]" style={{background:"rgba(0,0,0,0.5)", color:"#fff", backdropFilter:"blur(4px)"}}>{i.status}</span>}
+              {i.rating && <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px]" style={{background:"rgba(0,0,0,0.5)", color:"#e0c97a"}}>★ {i.rating}</span>}
+            </div>
+            <div className="p-3">
+              <h4 className="text-lg leading-tight" style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}>{i.title||"Sans titre"}</h4>
+              {i.type && <p className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>{i.type}</p>}
+            </div>
+          </button>
+        ))}
+        {items.length===0 && <p className="col-span-full text-center italic py-12" style={{color:"var(--muted)"}}>Rien encore. Colle un lien ou ajoute une fiche vide ✦</p>}
+      </div>
+    </div>
+  );
+}
+
+function CardList({ items, setItems, title, fields }) {
+  const [openId, setOpenId] = useState(null); // null = liste, id = page ouverte
+  const blank = useMemo(()=>Object.fromEntries(fields.map(f=>[f.k,""])), [fields]);
+  const open = items.find(i=>i.id===openId);
+
+  const addNew = () => { const it = {id:uid(), ...blank, created:new Date().toISOString().slice(0,10)}; setItems([it,...items]); setOpenId(it.id); };
+  const updateItem = (id, patch) => setItems(items.map(i=>i.id===id?{...i,...patch}:i));
+  const delItem = (id) => { if(confirm("Supprimer cette entrée ?")){ setItems(items.filter(i=>i.id!==id)); setOpenId(null); } };
+
+  // construire un court résumé : 1er champ multi/texte non-vide, tronqué
+  const summaryOf = (it) => {
+    const sumField = fields.find(f=>f.multi && it[f.k]) || fields.find(f=>!["image"].includes(f.k) && f.k!==fields[0].k && it[f.k]);
+    const txt = sumField ? String(it[sumField.k]) : "";
+    return txt.length>90 ? txt.slice(0,90).trim()+"…" : txt;
+  };
+
+  /* ---- PAGE DÉTAIL (tout le texte, éditable) ---- */
+  if (open) return (
+    <div className="animate-fade-up">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <button onClick={()=>setOpenId(null)} className="flex items-center gap-1 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour à la liste</button>
+        <button onClick={()=>delItem(open.id)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}><Trash2 size={12} className="inline mr-1"/>supprimer</button>
+      </div>
+      <div className="rounded-3xl p-5 sm:p-8" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        {open.image!==undefined && fields.some(f=>f.k==="image") && (
+          <div className="mb-5">
+            {open.image && <img src={open.image} alt="" className="w-full rounded-2xl mb-2 max-h-72 object-cover"/>}
+            <input value={open.image||""} onChange={e=>updateItem(open.id,{image:e.target.value})} placeholder="URL image"
+              className="w-full text-xs px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          </div>
+        )}
+        {fields.filter(f=>f.k!=="image").map((f,idx)=>(
+          <div key={f.k} className="mb-5">
+            <label className="text-xs uppercase tracking-widest block mb-1" style={{color:"var(--muted)"}}>{f.label}</label>
+            {f.multi ? (
+              <textarea value={open[f.k]||""} onChange={e=>updateItem(open.id,{[f.k]:e.target.value})}
+                rows={f.big?14:5} placeholder="Écris ici..."
+                className="w-full px-4 py-3 rounded-xl bg-transparent outline-none leading-relaxed"
+                style={{ border:"1px solid var(--border)", color:"var(--text)",
+                  fontFamily: f.big?'"Caveat", cursive':"inherit", fontSize: f.big?"19px":"15px",
+                  lineHeight: f.big?"30px":"1.6" }}/>
+            ) : (
+              <input value={open[f.k]||""} onChange={e=>updateItem(open.id,{[f.k]:e.target.value})}
+                className={idx===0?"w-full px-4 py-3 rounded-xl bg-transparent outline-none text-2xl":"w-full px-4 py-2 rounded-xl bg-transparent outline-none"}
+                style={{border:"1px solid var(--border)", color:"var(--text)", fontFamily:idx===0?'"Dancing Script", cursive':"inherit"}}
+                placeholder={idx===0?"Titre...":""}/>
+            )}
+          </div>
+        ))}
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>✦ Tout se sauvegarde automatiquement. Touche « retour » pour revenir à tes notes.</p>
+      </div>
+    </div>
+  );
+
+  /* ---- LISTE (cartes résumées) ---- */
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}>{title}</h3>
+        <button onClick={addNew} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> Ajouter</button>
+      </div>
       <div className="grid sm:grid-cols-2 gap-4">
         {items.map(i=>(
-          <article key={i.id} className="group rounded-2xl p-5 transition-all hover:scale-[1.02]" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
-            {i.image && <img src={i.image} alt="" className="w-full rounded-lg mb-3 max-h-48 object-cover"/>}
-            <h4 className="text-xl mb-2" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}>{i[fields[0].k]||"Sans titre"}</h4>
-            {fields.slice(1).map(f=> i[f.k] && f.k!=="image" && (
-              <p key={f.k} className="text-sm mb-2" style={{color:"var(--muted)"}}>
-                <span className="uppercase text-xs tracking-widest">{f.label}: </span>
-                <span style={{color:"var(--text)", whiteSpace:"pre-wrap"}}>{i[f.k]}</span>
-              </p>
-            ))}
-            <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition">
-              <button onClick={()=>{setEditing(i.id); setDraft(i);}} className="text-xs flex items-center gap-1" style={{color:"var(--primary)"}}><Edit3 size={12}/>éditer</button>
-              <button onClick={()=>setItems(items.filter(x=>x.id!==i.id))} className="text-xs flex items-center gap-1" style={{color:"var(--muted)"}}><Trash2 size={12}/>supprimer</button>
+          <button key={i.id} onClick={()=>setOpenId(i.id)} className="group text-left rounded-2xl p-5 transition-all hover:scale-[1.02]" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            {i.image && <img src={i.image} alt="" className="w-full rounded-lg mb-3 max-h-40 object-cover"/>}
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="text-xl" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}>{i[fields[0].k]||"Sans titre"}</h4>
+              <span className="text-xs flex-shrink-0 mt-1" style={{color:"var(--muted)"}}>{i.created||""}</span>
             </div>
-          </article>
+            {summaryOf(i) && <p className="text-sm mt-2 leading-snug" style={{color:"var(--muted)", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden"}}>{summaryOf(i)}</p>}
+            <span className="inline-flex items-center gap-1 text-xs mt-3" style={{color:"var(--primary)"}}><Edit3 size={11}/> ouvrir & écrire</span>
+          </button>
         ))}
-        {items.length===0 && !editing && <p className="col-span-2 text-center italic py-12" style={{color:"var(--muted)"}}>Rien ici. Ajoute ta première entrée ✦</p>}
+        {items.length===0 && <p className="col-span-2 text-center italic py-12" style={{color:"var(--muted)"}}>Rien ici. Ajoute ta première entrée ✦</p>}
       </div>
     </div>
   );
@@ -1030,16 +1558,19 @@ function SoftBrandBanner({ subtitle }) {
           <h2 className="text-5xl leading-none" style={{fontFamily:"var(--font-display)", color:"var(--ink)"}}>My <em style={{fontFamily:'"Dancing Script", cursive', fontWeight:400}}>Universe</em></h2>
           <p className="text-xs italic mt-2 tracking-wide" style={{color:"var(--ink)"}}>— {subtitle}</p>
         </div>
-        <div className="text-xs uppercase tracking-[0.3em]" style={{color:"var(--ink)"}}>mafi · journal</div>
       </div>
       <div className="h-2" style={{background:"var(--rose)"}}/>
     </div>
   );
 }
-function WoodPlank({ children, className="" }) {
+function WoodPlank({ children, className="", st={} }) {
+  const bg = st.bg || "linear-gradient(180deg, #6b4a2a 0%, #4a3018 100%)";
+  const border = st.border || "2px solid #2a1810";
+  const color = st.color || "#f0d49a";
+  const radius = st.radius!==undefined ? st.radius : 8;
   return (
-    <div className={`relative inline-block px-6 py-3 ${className}`} style={{background:`linear-gradient(180deg, #6b4a2a 0%, #4a3018 100%)`, border:"2px solid #2a1810", boxShadow:"inset 0 0 20px rgba(0,0,0,0.4), 0 4px 0 #1a0f08", borderRadius:"8px", fontFamily:'"Dancing Script", cursive'}}>
-      <span className="text-xl" style={{color:"#f0d49a", textShadow:"1px 1px 2px #000"}}>✦ {children} ✦</span>
+    <div className={`relative inline-block px-6 py-3 ${className}`} style={{background:bg, border, boxShadow:"inset 0 0 20px rgba(0,0,0,0.4), 0 4px 0 rgba(0,0,0,0.4)", borderRadius:`${radius}px`, fontFamily:'"Dancing Script", cursive'}}>
+      <span className="text-xl" style={{color, textShadow:"1px 1px 2px #000"}}>✦ {children} ✦</span>
     </div>
   );
 }
@@ -1089,10 +1620,14 @@ function ControlPanel({ open, onClose, ctx }) {
     <div className={`fixed inset-0 z-50 transition-all duration-500 ${open?"pointer-events-auto":"pointer-events-none"}`}>
       <div onClick={onClose} className={`absolute inset-0 transition-opacity ${open?"opacity-100":"opacity-0"}`} style={{background:"rgba(0,0,0,0.6)", backdropFilter:"blur(8px)"}}/>
       <aside className={`absolute right-0 top-0 bottom-0 w-full sm:max-w-md overflow-y-auto transition-transform duration-500 ${open?"translate-x-0":"translate-x-full"}`} style={{background:"var(--bg2)", borderLeft:"1px solid var(--border)"}}>
-        <div className="sticky top-0 z-10 p-6 pb-3 backdrop-blur-md" style={{background:"var(--bg2)"}}>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl flex items-center gap-2" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}><Settings size={20}/> Dashboard</h2>
-            <button onClick={onClose}><X style={{color:"var(--text)"}}/></button>
+        <div className="sticky top-0 z-10 px-4 sm:px-6 pt-6 pb-3 backdrop-blur-md" style={{background:"var(--bg2)", paddingTop:"calc(env(safe-area-inset-top) + 1.5rem)"}}>
+          <div className="flex justify-between items-center mb-4 gap-3">
+            <h2 className="text-2xl flex items-center gap-2 min-w-0" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}><Settings size={20}/> Dashboard</h2>
+            <button onClick={onClose} aria-label="Fermer"
+              className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition hover:scale-105 active:scale-95"
+              style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>
+              <X size={22}/>
+            </button>
           </div>
           <div className="flex gap-1 text-xs flex-wrap">
             {[{k:"look",l:"Thème"},{k:"custom",l:"Couleurs & Fond"},{k:"sections",l:"Sections"},{k:"content",l:"Contenu witch"}].map(t=>(
@@ -1113,7 +1648,7 @@ function ControlPanel({ open, onClose, ctx }) {
             <section className="mb-8">
               <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Type size={14}/> Police</h3>
               <select value={font} onChange={e=>setFont(e.target.value)} className="w-full p-3 rounded-xl bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
-                {Object.entries(FONTS).map(([k,f])=>(<option key={k} value={k} style={{background:"var(--bg2)"}}>{f.name}</option>))}</select>
+                {Object.entries(FONTS).map(([k,f])=>(<option key={k} value={k} style={{background:"var(--bg2)", fontFamily:f.stack}}>{f.name}</option>))}</select>
             </section>
           </>)}
 
@@ -1190,6 +1725,11 @@ function ControlPanel({ open, onClose, ctx }) {
               <ul className="space-y-1 text-xs">{customAffirm.map(t=>(<li key={t.id} className="flex justify-between px-2 py-1 rounded" style={{background:"var(--surface)"}}><span style={{color:"var(--text)"}}>{t.text}</span><button onClick={()=>setCustomAffirm(customAffirm.filter(x=>x.id!==t.id))}><X size={12} style={{color:"var(--muted)"}}/></button></li>))}</ul>
             </section>
           </>)}
+
+          <button onClick={onClose} className="w-full mt-8 mb-4 py-3 rounded-2xl text-sm transition hover:scale-95"
+            style={{background:"var(--primary)", color:"var(--bg)", paddingBottom:"calc(0.75rem + env(safe-area-inset-bottom))"}}>
+            ✦ Terminer
+          </button>
         </div>
       </aside>
     </div>
@@ -1278,7 +1818,7 @@ function DreamJournal({ entries, setEntries }) {
 
           <div className="space-y-4">
             {entries.map(e=>(
-              <article key={e.id} className="group rounded-xl p-4" style={{background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,200,240,0.3)", backdropFilter:"blur(6px)"}}>
+              <article key={e.id} onClick={()=>{ setDraft(e); setEditing(e.id); }} className="group rounded-xl p-4 cursor-pointer transition hover:scale-[1.01]" style={{background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,200,240,0.3)", backdropFilter:"blur(6px)"}}>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg" style={{fontFamily:'"VT323", monospace', color:"#ff9ed8", textShadow:"0 0 6px rgba(255,158,216,0.6)"}}>
                     {e.lucid && "✦ "}{e.title || "Rêve sans titre"}
@@ -1286,10 +1826,10 @@ function DreamJournal({ entries, setEntries }) {
                   <span className="text-xs" style={{color:"#c8a0e8"}}>{e.date}</span>
                 </div>
                 {(e.mood||e.symbols) && <p className="text-[11px] mb-2" style={{color:"#d4b0e8"}}>{e.mood && `💭 ${e.mood}`}{e.mood&&e.symbols&&" · "}{e.symbols && `🔮 ${e.symbols}`}</p>}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{color:"#eaddf5"}}>{e.content}</p>
-                <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition">
-                  <button onClick={()=>{ setDraft(e); setEditing(e.id); }} className="text-xs" style={{color:"#ff9ed8"}}>éditer</button>
-                  <button onClick={()=>setEntries(entries.filter(x=>x.id!==e.id))} className="text-xs" style={{color:"#c8a0e8"}}>supprimer</button>
+                <p className="text-sm leading-snug" style={{color:"#eaddf5", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden"}}>{e.content}</p>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="inline-flex items-center gap-1 text-xs" style={{color:"#ff9ed8"}}>✦ ouvrir & lire</span>
+                  <button onClick={(ev)=>{ ev.stopPropagation(); if(confirm("Supprimer ce rêve ?")) setEntries(entries.filter(x=>x.id!==e.id)); }} className="text-xs opacity-0 group-hover:opacity-100 transition" style={{color:"#c8a0e8"}}><Trash2 size={12}/></button>
                 </div>
               </article>
             ))}
@@ -1334,6 +1874,264 @@ const SUBTABS = {
 /* ============================================================
    ✦ MON UNIVERS — page d'accueil style Moonmilk Magic (éditable A→Z)
    ============================================================ */
+/* ============================================================
+   ✦ HUB SHIFTING — liste de DR + page script détaillée
+   ============================================================ */
+const DR_DEFAULT_SECTIONS = [
+  { id:"general", label:"✦ Infos générales", icon:"🌙" },
+  { id:"appearance", label:"✦ Apparence & style", icon:"💄" },
+  { id:"family", label:"✦ Famille & origines", icon:"👨‍👩‍👧" },
+  { id:"friends", label:"✦ Amis & entourage", icon:"💌" },
+  { id:"daily", label:"✦ Vie quotidienne", icon:"☕" },
+  { id:"school", label:"✦ École / Travail", icon:"📚" },
+  { id:"home", label:"✦ Lieu de vie", icon:"🏡" },
+  { id:"romance", label:"✦ Romance / S.O.", icon:"💗" },
+  { id:"rules", label:"✦ Règles & intentions", icon:"⚖️" },
+  { id:"safewords", label:"✦ Safe words", icon:"🔐" },
+  { id:"method", label:"✦ Méthode favorite", icon:"🌀" },
+  { id:"attempts", label:"✦ Tentatives & ressentis", icon:"📝" },
+];
+
+function makeBlankDR() {
+  return {
+    id: uid(),
+    name: "Nouvelle DR",
+    cover: "",
+    tag: "",
+    sections: DR_DEFAULT_SECTIONS.map(s=>({...s, content:""})),
+    gallery: [],
+    playlist: "",
+    quote: "",
+    favorite: false,
+    created: new Date().toISOString().slice(0,10),
+  };
+}
+
+function ShiftingHub({ drs, setDrs }) {
+  const [openId, setOpenId] = useState(null);
+  const open = drs.find(d=>d.id===openId);
+
+  const newDR = () => { const d = makeBlankDR(); setDrs([d, ...drs]); setOpenId(d.id); };
+  const updateDR = (id, patch) => setDrs(drs.map(d=>d.id===id?{...d,...patch}:d));
+  const delDR = (id) => { if(confirm("Supprimer cette DR et tout son script ?")){ setDrs(drs.filter(d=>d.id!==id)); setOpenId(null); } };
+
+  if (open) return <ShiftingScriptPage dr={open} onBack={()=>setOpenId(null)} onUpdate={p=>updateDR(open.id,p)} onDelete={()=>delDR(open.id)}/>;
+
+  return (
+    <div className="animate-fade-up">
+      {/* En-tête méthodes */}
+      <div className="rounded-2xl p-5 sm:p-6 mb-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <h3 className="text-2xl mb-3" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Méthodes de shifting ✦</h3>
+        <div className="grid sm:grid-cols-2 gap-3 text-sm">{SHIFTING_METHODS.map(m=>(
+          <div key={m.name} className="rounded-xl p-3" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+            <p className="font-bold mb-1" style={{color:"var(--accent)"}}>{m.name}</p>
+            <p style={{color:"var(--text)"}}>{m.desc}</p>
+          </div>
+        ))}</div>
+      </div>
+
+      {/* Titre + bouton + */}
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h3 className="text-3xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Mes Desired Realities ✦</h3>
+          <p className="text-xs italic" style={{color:"var(--muted)"}}>Chaque DR a son propre script complet. Touche une carte pour ouvrir.</p>
+        </div>
+        <button onClick={newDR} className="flex items-center gap-1 px-4 py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>
+          <Plus size={14}/> Nouvelle DR
+        </button>
+      </div>
+
+      {/* Grille des DR */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        {drs.map(d=>(
+          <button key={d.id} onClick={()=>setOpenId(d.id)} className="group text-left rounded-2xl overflow-hidden transition hover:scale-[1.02]"
+            style={{background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"0 8px 24px rgba(0,0,0,0.15)"}}>
+            <div className="relative" style={{aspectRatio:"4/3"}}>
+              {d.cover
+                ? <img src={d.cover} alt="" className="w-full h-full object-cover"/>
+                : <div className="w-full h-full flex items-center justify-center text-5xl" style={{background:"linear-gradient(160deg, var(--surface2), var(--primary))"}}>🌙</div>}
+              {d.favorite && <span className="absolute top-2 right-2 text-xl">⭐</span>}
+              {d.tag && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px]" style={{background:"rgba(0,0,0,0.5)", color:"#fff", backdropFilter:"blur(4px)"}}>{d.tag}</span>}
+            </div>
+            <div className="p-4">
+              <h4 className="text-xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}>{d.name}</h4>
+              {d.quote && <p className="text-xs italic line-clamp-2" style={{color:"var(--muted)"}}>« {d.quote} »</p>}
+              <p className="text-[10px] mt-2" style={{color:"var(--muted)"}}>créée le {d.created}</p>
+            </div>
+          </button>
+        ))}
+        {drs.length===0 && (
+          <div className="sm:col-span-2 lg:col-span-3 text-center py-12 italic" style={{color:"var(--muted)"}}>
+            Aucune DR encore. Touche « Nouvelle DR » pour créer ton premier script ✦
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
+  const [activeSection, setActiveSection] = useState(dr.sections[0]?.id || "general");
+  const currentSec = dr.sections.find(s=>s.id===activeSection);
+
+  const updateSection = (id, patch) => onUpdate({ sections: dr.sections.map(s=>s.id===id?{...s,...patch}:s) });
+  const addSection = () => {
+    const id = "custom_"+uid();
+    onUpdate({ sections: [...dr.sections, { id, label:"✦ Nouvelle section", icon:"✨", content:"" }] });
+    setActiveSection(id);
+  };
+  const delSection = (id) => {
+    if (dr.sections.length<=1) return;
+    if (!confirm("Supprimer cette section ?")) return;
+    const newSecs = dr.sections.filter(s=>s.id!==id);
+    onUpdate({ sections: newSecs });
+    setActiveSection(newSecs[0]?.id);
+  };
+  const addGalleryImg = () => onUpdate({ gallery: [...dr.gallery, { id:uid(), url:"", caption:"" }] });
+  const updateGalleryImg = (id, patch) => onUpdate({ gallery: dr.gallery.map(g=>g.id===id?{...g,...patch}:g) });
+  const delGalleryImg = (id) => onUpdate({ gallery: dr.gallery.filter(g=>g.id!==id) });
+
+  return (
+    <div className="animate-fade-up">
+      {/* Barre de retour */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <button onClick={onBack} className="flex items-center gap-1 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>
+          ← retour à mes DR
+        </button>
+        <button onClick={()=>onUpdate({favorite:!dr.favorite})} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:dr.favorite?"#e0c97a":"var(--text)"}}>
+          {dr.favorite ? "⭐ favorite" : "☆ ajouter aux favoris"}
+        </button>
+        <button onClick={onDelete} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}>
+          <Trash2 size={12} className="inline mr-1"/> supprimer DR
+        </button>
+      </div>
+
+      {/* HERO : couverture + nom + citation */}
+      <div className="relative rounded-3xl overflow-hidden mb-6" style={{border:"1px solid var(--border)", boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
+        <div className="relative" style={{aspectRatio:"16/7", minHeight:"200px",
+          background: dr.cover ? `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.5)), url(${dr.cover}) center/cover` : `linear-gradient(160deg, var(--surface2) 0%, var(--primary) 100%)`}}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+            <input value={dr.name} onChange={e=>onUpdate({name:e.target.value})}
+              className="bg-transparent outline-none text-center text-3xl sm:text-5xl"
+              style={{fontFamily:'"Dancing Script",cursive', color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,0.6)"}}/>
+            <input value={dr.quote} onChange={e=>onUpdate({quote:e.target.value})} placeholder="une citation, un mot, un mantra pour cette DR..."
+              className="mt-2 w-full max-w-md bg-transparent outline-none text-center text-sm italic"
+              style={{color:"#fff", textShadow:"0 1px 6px rgba(0,0,0,0.6)"}}/>
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-3 p-4" style={{background:"var(--surface)"}}>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>URL couverture</label>
+            <input value={dr.cover} onChange={e=>onUpdate({cover:e.target.value})} placeholder="https://..."
+              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Tag / catégorie</label>
+            <input value={dr.tag} onChange={e=>onUpdate({tag:e.target.value})} placeholder="ex: Hogwarts, K-pop, MCU..."
+              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Playlist (Spotify)</label>
+            <input value={dr.playlist} onChange={e=>onUpdate({playlist:e.target.value})} placeholder="lien Spotify"
+              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* Playlist embed */}
+      {dr.playlist?.includes("spotify") && (
+        <div className="rounded-2xl overflow-hidden mb-6" style={{border:"1px solid var(--border)"}}>
+          <iframe title="dr-playlist" src={dr.playlist.replace("/track/","/embed/track/").replace("/playlist/","/embed/playlist/").replace("/album/","/embed/album/")} width="100%" height="80" frameBorder="0" allow="encrypted-media"/>
+        </div>
+      )}
+
+      {/* Layout : barre latérale sections + contenu */}
+      <div className="grid md:grid-cols-4 gap-4">
+        {/* nav sections */}
+        <nav className="md:col-span-1 flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+          {dr.sections.map(s=>(
+            <button key={s.id} onClick={()=>setActiveSection(s.id)}
+              className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-left whitespace-nowrap md:whitespace-normal transition"
+              style={{
+                background: activeSection===s.id ? "var(--primary)" : "var(--surface)",
+                color: activeSection===s.id ? "var(--bg)" : "var(--text)",
+                border:"1px solid var(--border)"
+              }}>
+              <span>{s.icon}</span>
+              <span className="text-xs md:text-sm">{s.label.replace("✦ ","")}</span>
+            </button>
+          ))}
+          <button onClick={addSection} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs italic" style={{background:"transparent", border:"1px dashed var(--border)", color:"var(--muted)"}}>
+            <Plus size={12}/> ajouter une section
+          </button>
+        </nav>
+
+        {/* contenu section active */}
+        <div className="md:col-span-3 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)", minHeight:"400px"}}>
+          {currentSec && (<>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <input value={currentSec.label} onChange={e=>updateSection(currentSec.id,{label:e.target.value})}
+                className="text-2xl bg-transparent outline-none flex-1 min-w-0"
+                style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}/>
+              {currentSec.id.startsWith("custom_") && (
+                <button onClick={()=>delSection(currentSec.id)} className="text-xs flex items-center gap-1" style={{color:"#c08080"}}>
+                  <Trash2 size={12}/> supprimer
+                </button>
+              )}
+            </div>
+            <textarea value={currentSec.content||""} onChange={e=>updateSection(currentSec.id,{content:e.target.value})}
+              placeholder="Écris tout ce que tu veux pour cette section. Détails physiques, anecdotes, dialogues, souvenirs futurs, intentions... tout ce qui rend cette DR vivante."
+              rows={16}
+              className="w-full bg-transparent outline-none leading-relaxed"
+              style={{ fontFamily:'"Caveat", cursive', fontSize:"19px", color:"var(--text)", lineHeight:"30px",
+                backgroundImage:"repeating-linear-gradient(transparent, transparent 29px, rgba(120,120,150,0.18) 30px)" }}/>
+          </>)}
+        </div>
+      </div>
+
+      {/* Galerie d'images */}
+      <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Galerie & vision board ✦</h3>
+          <button onClick={addGalleryImg} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>
+            <Plus size={12}/> ajouter une image
+          </button>
+        </div>
+        {dr.gallery.length===0 && <p className="text-sm italic text-center py-6" style={{color:"var(--muted)"}}>Aucune image. Ajoute des photos pour visualiser ta DR.</p>}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {dr.gallery.map(g=>(
+            <div key={g.id} className="group relative rounded-xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
+              {g.url
+                ? <img src={g.url} alt="" className="w-full object-cover" style={{aspectRatio:"1"}}/>
+                : <div className="w-full flex items-center justify-center text-3xl" style={{aspectRatio:"1", background:"var(--surface2)"}}>🖼️</div>}
+              <div className="p-2" style={{background:"var(--surface2)"}}>
+                <input value={g.url} onChange={e=>updateGalleryImg(g.id,{url:e.target.value})} placeholder="URL image"
+                  className="w-full text-[10px] px-1 py-0.5 rounded bg-transparent outline-none mb-1" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+                <input value={g.caption} onChange={e=>updateGalleryImg(g.id,{caption:e.target.value})} placeholder="légende..."
+                  className="w-full text-xs px-1 py-0.5 rounded bg-transparent outline-none italic" style={{color:"var(--muted)"}}/>
+              </div>
+              <button onClick={()=>delGalleryImg(g.id)} className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-100 transition" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}>
+                <X size={12}/>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditableText({ value, onChange, edit, className, style, multiline, placeholder }) {
+  if (!edit) return multiline
+    ? <p className={className} style={{...style, whiteSpace:"pre-wrap"}}>{value}</p>
+    : <span className={className} style={style}>{value}</span>;
+  return multiline
+    ? <textarea value={value} onChange={e=>onChange(e.target.value)} rows={5} placeholder={placeholder}
+        className={`bg-transparent outline-none resize-none w-full rounded ${className}`} style={{...style, boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.3)"}}/>
+    : <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        className={`bg-transparent outline-none w-full rounded ${className}`} style={{...style, boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.3)"}}/>;
+}
+
 const HOME_DEFAULT = {
   name: "",
   heroImg: "",
@@ -1350,17 +2148,6 @@ const HOME_DEFAULT = {
     { id:"c3", n:"03", title:"Mon journal", sub:"pages secrètes", img:"", go:"journal" },
   ],
 };
-
-function EditableText({ value, onChange, edit, className, style, multiline, placeholder }) {
-  if (!edit) return multiline
-    ? <p className={className} style={{...style, whiteSpace:"pre-wrap"}}>{value}</p>
-    : <span className={className} style={style}>{value}</span>;
-  return multiline
-    ? <textarea value={value} onChange={e=>onChange(e.target.value)} rows={5} placeholder={placeholder}
-        className={`bg-transparent outline-none resize-none w-full rounded ${className}`} style={{...style, boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.3)"}}/>
-    : <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-        className={`bg-transparent outline-none w-full rounded ${className}`} style={{...style, boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.3)"}}/>;
-}
 
 function HomeUniverse({ content, setContent, affirm, onGo }) {
   const [edit, setEdit] = useState(false);
@@ -1664,7 +2451,9 @@ export default function App() {
           // restaurer chaque morceau d'état si présent
           if (data.appPin!==undefined) setAppPin(data.appPin);
           if (data.homeContent) setHomeContent(data.homeContent);
-          if (data.theme) setTheme(data.theme);
+          if (data.witchTexts) setWitchTexts(data.witchTexts);
+          if (data.sectionThemes) setSectionThemes(data.sectionThemes);
+          else if (data.theme) setSectionThemes({ moi: data.theme, witch: data.theme });
           if (data.font) setFont(data.font);
           if (data.sections) setSections(data.sections);
           if (data.overrides) setOverrides(data.overrides);
@@ -1701,12 +2490,27 @@ export default function App() {
   const [appPin, setAppPin] = useState("");
   const [appUnlocked, setAppUnlocked] = useState(false);
   const [homeContent, setHomeContent] = useState(HOME_DEFAULT);
-  const [theme, setTheme] = useState("myUniverse");
+  const [witchTexts, setWitchTexts] = useState({
+    tavern: "THE WITCH'S TAVERN",
+    tavernBg: "linear-gradient(180deg, #6b4a2a 0%, #4a3018 100%)",
+    tavernBorderColor: "#2a1810",
+    tavernColor: "#f0d49a",
+    tavernRadius: 8,
+    spellNo: "No. 13",
+    spellTitle: "The Witches Spell Book",
+    spellSub: "Useful spells for quick reference",
+  });
+  const [witchEdit, setWitchEdit] = useState(false);
   const [font, setFont] = useState("serif");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [widgetMenuOpen, setWidgetMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("moi");
   const [activeSub, setActiveSub] = useState("dashboard");
-  const [sections, setSections] = useState([{id:"moi",name:"Moi",custom:false},{id:"witch",name:"Witch",custom:false}]);
+  const [sectionThemes, setSectionThemes] = useState({ moi:"myUniverse", witch:"witchPurple" });
+  // le thème affiché dépend UNIQUEMENT du côté actif → changer un côté ne touche jamais l'autre
+  const theme = sectionThemes[activeSection] || (activeSection==="witch" ? "witchPurple" : "myUniverse");
+  const setTheme = (t) => setSectionThemes(prev => ({ ...prev, [activeSection]: t }));
+  const [sections, setSections] = useState([{id:"moi",name:"Yasmine",custom:false},{id:"witch",name:"Yasmeen",custom:false}]);
   const [overrides, setOverrides] = useState({}); // {"sec:moi":{backdrop,colors}, "sub:witch:dreams":{...}}
 
   // DATA
@@ -1742,7 +2546,7 @@ export default function App() {
     if (!user || !initialLoadDone.current) return;
     const t = setTimeout(()=>{
       saveState(user.uid, {
-        appPin, homeContent, theme, font, sections, overrides,
+        appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides,
         tasks, widgets, scrapPages, journalPin, grimoireEntries,
         shiftingNotes, astralNotes, passions, wishlist, goals,
         gratitude, moodLog, habits, dreamLog, tarotLog, intentions,
@@ -1750,7 +2554,7 @@ export default function App() {
       });
     }, 1000);
     return ()=>clearTimeout(t);
-  }, [user, appPin, homeContent, theme, font, sections, overrides, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
+  }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
 
   const themeObj = THEMES[theme];
 
@@ -1829,7 +2633,7 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Cinzel:wght@400;700&family=Fraunces:wght@300;600&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Major+Mono+Display&family=VT323&family=UnifrakturCook:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Cinzel:wght@400;700&family=Fraunces:wght@300;600&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Major+Mono+Display&family=VT323&family=UnifrakturCook:wght@700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+SC:wght@400;600&family=EB+Garamond:ital@0;1&family=Italiana&family=Marcellus&family=Cinzel+Decorative:wght@400;700&family=Great+Vibes&family=Parisienne&family=Sacramento&family=Pinyon+Script&family=Homemade+Apple&family=Shadows+Into+Light&family=Gloock&family=Space+Mono:ital@0;1&family=Pixelify+Sans&family=Monoton&family=Yeseva+One&family=Amatic+SC:wght@400;700&display=swap');
         :root { --font-body:'Cormorant Garamond',serif; --font-display:'Cinzel',serif; }
         body { font-family:var(--font-body); min-height:100vh; transition:background .8s ease; }
         @keyframes twinkle {0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.3)}}
@@ -1868,8 +2672,8 @@ export default function App() {
             {sections.map(s=>(
               <button key={s.id} onClick={()=>{
                 setActiveSection(s.id);
-                if(s.id==="moi"){ setActiveSub("dashboard"); setTheme("myUniverse"); }
-                else if(s.id==="witch"){ setActiveSub("tavern"); setTheme("witchPurple"); }
+                if(s.id==="moi"){ setActiveSub("dashboard"); }
+                else if(s.id==="witch"){ setActiveSub("tavern"); }
                 else setActiveSub("main");
               }} className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all" style={{background:activeSection===s.id?"var(--primary)":"transparent", color:activeSection===s.id?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{s.name}</button>
             ))}
@@ -1879,7 +2683,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 relative">
         {/* ===== MOI ===== */}
         {activeSection==="moi" && (<div className="animate-fade-up">
           <SoftBrandBanner subtitle="a journal made with love and dry petals"/>
@@ -1896,7 +2700,7 @@ export default function App() {
           </div>)}
           {activeSub==="habits" && <HabitsTracker habits={habits} setHabits={setHabits}/>}
           {activeSub==="goals" && <CardList items={goals} setItems={setGoals} title="Objectifs & vision board" fields={[{k:"title",label:"Titre"},{k:"deadline",label:"Échéance"},{k:"why",label:"Pourquoi ?",multi:true},{k:"steps",label:"Premiers pas",multi:true},{k:"image",label:"Image URL"}]}/>}
-          {activeSub==="passions" && <CardList items={passions} setItems={setPassions} title="Anime · Films · K-Dramas · Livres" fields={[{k:"title",label:"Titre"},{k:"type",label:"Type"},{k:"status",label:"Statut"},{k:"rating",label:"Note /10"},{k:"note",label:"Avis",multi:true},{k:"image",label:"Image URL"}]}/>}
+          {activeSub==="passions" && <PassionsList items={passions} setItems={setPassions}/>}
           {activeSub==="wishlist" && <CardList items={wishlist} setItems={setWishlist} title="Wishlist" fields={[{k:"title",label:"Objet"},{k:"price",label:"Prix"},{k:"priority",label:"Priorité"},{k:"url",label:"Lien"},{k:"image",label:"Image URL"}]}/>}
           {activeSub==="gratitude" && <GratitudeJournal entries={gratitude} setEntries={setGratitude}/>}
           {activeSub==="mood" && <MoodTracker log={moodLog} setLog={setMoodLog}/>}
@@ -1905,7 +2709,45 @@ export default function App() {
 
         {/* ===== WITCH ===== */}
         {activeSection==="witch" && (<div className="animate-fade-up">
-          <div className="text-center mb-2"><WoodPlank>THE WITCH'S TAVERN</WoodPlank></div>
+          <div className="text-center mb-2 relative">
+            {witchEdit ? (
+              <div className="inline-block">
+                <input value={witchTexts.tavern} onChange={e=>setWitchTexts({...witchTexts, tavern:e.target.value})}
+                  className="text-center bg-transparent outline-none text-xl px-4 py-2 rounded-lg"
+                  style={{ background:witchTexts.tavernBg, color:witchTexts.tavernColor, border:`2px solid ${witchTexts.tavernBorderColor}`, borderRadius:`${witchTexts.tavernRadius}px`, fontFamily:'"Dancing Script",cursive' }}/>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs p-3 rounded-xl" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+                  <label className="flex items-center gap-1" style={{color:"var(--text)"}}>texte
+                    <input type="color" value={witchTexts.tavernColor} onChange={e=>setWitchTexts({...witchTexts, tavernColor:e.target.value})} className="w-7 h-7 rounded cursor-pointer bg-transparent"/>
+                  </label>
+                  <label className="flex items-center gap-1" style={{color:"var(--text)"}}>contour
+                    <input type="color" value={witchTexts.tavernBorderColor} onChange={e=>setWitchTexts({...witchTexts, tavernBorderColor:e.target.value})} className="w-7 h-7 rounded cursor-pointer bg-transparent"/>
+                  </label>
+                  <label className="flex items-center gap-1" style={{color:"var(--text)"}}>fond
+                    <input type="color" defaultValue="#4a3018" onChange={e=>setWitchTexts({...witchTexts, tavernBg:`linear-gradient(180deg, ${e.target.value} 0%, ${e.target.value} 100%)`})} className="w-7 h-7 rounded cursor-pointer bg-transparent"/>
+                  </label>
+                  <label className="flex items-center gap-1" style={{color:"var(--text)"}}>arrondi
+                    <input type="range" min="0" max="40" value={witchTexts.tavernRadius} onChange={e=>setWitchTexts({...witchTexts, tavernRadius:parseInt(e.target.value)})} className="w-20"/>
+                  </label>
+                  <div className="flex gap-1">
+                    {[
+                      {l:"bois", bg:"linear-gradient(180deg, #6b4a2a 0%, #4a3018 100%)", c:"#f0d49a", b:"#2a1810"},
+                      {l:"violet", bg:"linear-gradient(180deg, #7a3a8a 0%, #3a1f4e 100%)", c:"#e0c97a", b:"#2a0f3a"},
+                      {l:"or", bg:"linear-gradient(180deg, #c9a26a 0%, #8a6a3a 100%)", c:"#2a1810", b:"#5a3a18"},
+                      {l:"rose", bg:"linear-gradient(180deg, #d99a8f 0%, #9c4a5a 100%)", c:"#fff", b:"#6a2a3a"},
+                      {l:"nuit", bg:"linear-gradient(180deg, #3a4d6b 0%, #1a2438 100%)", c:"#cfe0f5", b:"#0d1420"},
+                    ].map(p=>(
+                      <button key={p.l} onClick={()=>setWitchTexts({...witchTexts, tavernBg:p.bg, tavernColor:p.c, tavernBorderColor:p.b})}
+                        className="px-2 py-1 rounded text-[10px]" style={{background:p.bg, color:p.c, border:`1px solid ${p.b}`}}>{p.l}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : <WoodPlank st={{bg:witchTexts.tavernBg, color:witchTexts.tavernColor, border:`2px solid ${witchTexts.tavernBorderColor}`, radius:witchTexts.tavernRadius}}>{witchTexts.tavern}</WoodPlank>}
+            <button onClick={()=>setWitchEdit(!witchEdit)} className="ml-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] align-middle"
+              style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>
+              <Edit3 size={10}/> {witchEdit?"ok":"modifier"}
+            </button>
+          </div>
           <p className="text-center text-sm italic mt-3" style={{color:"var(--muted)"}}>« {pickByDate(QUOTES_WITCH,"w")} »</p>
           <Garland/>
           <div className="flex flex-nowrap sm:flex-wrap gap-2 mb-6 sm:mb-8 sm:justify-center overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:overflow-visible">{SUBTABS.witch.map(t=>{const I=t.icon;return(
@@ -1914,10 +2756,17 @@ export default function App() {
 
           {activeSub==="tavern" && (<div className="grid lg:grid-cols-3 gap-6">
             <div className="rounded-2xl p-6 text-center animate-glow" style={{background:"linear-gradient(180deg,#e8dcc0,#c9a26a)", border:"3px double #4a3018", color:"#2a1810"}}>
-              <p className="text-xs uppercase tracking-[0.3em]">No. 13</p>
-              <h3 className="text-3xl mt-2" style={{fontFamily:'"UnifrakturCook",serif'}}>The Witches Spell Book</h3>
+              {witchEdit ? (<>
+                <input value={witchTexts.spellNo} onChange={e=>setWitchTexts({...witchTexts, spellNo:e.target.value})} className="text-center bg-white/30 rounded outline-none text-xs uppercase tracking-[0.3em] w-full mb-1" style={{color:"#2a1810"}}/>
+                <input value={witchTexts.spellTitle} onChange={e=>setWitchTexts({...witchTexts, spellTitle:e.target.value})} className="text-center bg-white/30 rounded outline-none text-2xl w-full" style={{color:"#2a1810", fontFamily:'"UnifrakturCook",serif'}}/>
+              </>) : (<>
+                <p className="text-xs uppercase tracking-[0.3em]">{witchTexts.spellNo}</p>
+                <h3 className="text-3xl mt-2" style={{fontFamily:'"UnifrakturCook",serif'}}>{witchTexts.spellTitle}</h3>
+              </>)}
               <div className="my-4 text-6xl">📖</div>
-              <p className="text-[10px] uppercase tracking-widest">Useful spells for quick reference</p>
+              {witchEdit
+                ? <input value={witchTexts.spellSub} onChange={e=>setWitchTexts({...witchTexts, spellSub:e.target.value})} className="text-center bg-white/30 rounded outline-none text-[10px] uppercase tracking-widest w-full" style={{color:"#2a1810"}}/>
+                : <p className="text-[10px] uppercase tracking-widest">{witchTexts.spellSub}</p>}
             </div>
             <div className="rounded-2xl p-6 flex flex-col items-center justify-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
               <p className="italic mb-3" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✧ check the time ✧</p><MoonClock compact/>
@@ -1993,13 +2842,7 @@ export default function App() {
 
           {activeSub==="tarot" && <CardList items={tarotLog} setItems={setTarotLog} title="Journal de tirages" fields={[{k:"title",label:"Date/contexte"},{k:"deck",label:"Jeu"},{k:"question",label:"Question"},{k:"cards",label:"Cartes",multi:true},{k:"interpretation",label:"Interprétation",multi:true,big:true}]}/>}
 
-          {activeSub==="shifting" && (<div>
-            <div className="rounded-2xl p-6 mb-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
-              <h3 className="text-2xl mb-3" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Méthodes de shifting ✦</h3>
-              <div className="grid md:grid-cols-2 gap-3 text-sm">{SHIFTING_METHODS.map(m=>(<div key={m.name} className="rounded-xl p-3" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}><p className="font-bold mb-1" style={{color:"var(--accent)"}}>{m.name}</p><p style={{color:"var(--text)"}}>{m.desc}</p></div>))}</div>
-            </div>
-            <CardList items={shiftingNotes} setItems={setShiftingNotes} title="Mes DR & scripts" fields={[{k:"title",label:"Nom DR"},{k:"method",label:"Méthode"},{k:"appearance",label:"Apparence",multi:true},{k:"life",label:"Vie/contexte",multi:true},{k:"script",label:"Script",multi:true,big:true},{k:"experiences",label:"Ressentis",multi:true}]}/>
-          </div>)}
+          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes}/>}
 
           {activeSub==="astral" && <CardList items={astralNotes} setItems={setAstralNotes} title="Voyages astraux & expériences" fields={[{k:"title",label:"Date/titre"},{k:"type",label:"Type (OBE, lucide)"},{k:"sensations",label:"Sensations",multi:true},{k:"content",label:"Récit",multi:true,big:true}]}/>}
 
@@ -2014,29 +2857,43 @@ export default function App() {
           <p className="italic" style={{color:"var(--muted)"}}>Ce coin est à toi. Personnalise ses couleurs et son fond dans le Dashboard, et ajoute des widgets ci-dessous.</p>
         </div>)}
 
-        {/* WIDGETS — planche libre, propre à chaque section */}
-        <section className="mt-16">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div>
-              <h3 className="text-lg uppercase tracking-widest" style={{color:"var(--muted)"}}>Ma planche de widgets</h3>
-              <p className="text-xs italic" style={{color:"var(--muted)"}}>Place gifs, images, citations, musique où tu veux dans « {sections.find(s=>s.id===activeSection)?.name} ». Attrape ⠿ pour bouger, ↘ pour agrandir.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">{[{t:"gif",icon:Sparkles,label:"Gif"},{t:"image",icon:ImageIcon,label:"Image"},{t:"quote",icon:Quote,label:"Citation"},{t:"sticky",icon:StickyNote,label:"Note"},{t:"playlist",icon:Music,label:"Musique"},{t:"clock",icon:Clock,label:"Horloge"}].map(b=>{const I=b.icon;return(
-              <button key={b.t} onClick={()=>addWidget(b.t)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition hover:scale-105" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={12}/><I size={12}/>{b.label}</button>
-            )})}</div>
-          </div>
-          <div className="relative rounded-3xl" style={{minHeight:"360px", background:"var(--surface2)", border:"1px dashed var(--border)"}}>
-            {secWidgets.length===0 && <p className="absolute inset-0 flex items-center justify-center text-sm italic" style={{color:"var(--muted)"}}>Planche vide. Ajoute un widget avec les boutons ci-dessus ✦</p>}
-            {secWidgets.map(w=>(
-              <Widget key={w.id} widget={w}
-                onUpdate={u=>setSecWidgets(secWidgets.map(x=>x.id===w.id?u:x))}
-                onDelete={()=>setSecWidgets(secWidgets.filter(x=>x.id!==w.id))}/>
-            ))}
-          </div>
-        </section>
-
         <footer className="mt-20 mb-6 text-center text-xs italic" style={{color:"var(--muted)"}}>✦ Nyx — un espace créé pour toi, qui change avec la lune ✦</footer>
+
+        {/* WIDGETS FLOTTANTS — posés PARTOUT par-dessus toute la section */}
+        <div className="absolute inset-0 pointer-events-none" style={{zIndex:15}}>
+          {secWidgets.map(w=>(
+            <Widget key={w.id} widget={w}
+              onUpdate={u=>setSecWidgets(secWidgets.map(x=>x.id===w.id?u:x))}
+              onDelete={()=>setSecWidgets(secWidgets.filter(x=>x.id!==w.id))}/>
+          ))}
+        </div>
       </main>
+
+      {/* BOUTON FLOTTANT : ajouter un widget n'importe où */}
+      {appUnlocked && (
+        <>
+          {widgetMenuOpen && <div onClick={()=>setWidgetMenuOpen(false)} className="fixed inset-0 z-30" style={{background:"rgba(0,0,0,0.15)"}}/>}
+          <div className="fixed z-40" style={{ right:"calc(env(safe-area-inset-right) + 1rem)", bottom:"calc(env(safe-area-inset-bottom) + 1rem)" }}>
+            {widgetMenuOpen && (
+              <div className="absolute bottom-16 right-0 flex flex-col gap-2 mb-1 animate-fade-up items-end">
+                <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest mb-1" style={{background:"var(--primary)", color:"var(--bg)"}}>
+                  ajouter chez {sections.find(s=>s.id===activeSection)?.name || activeSection}
+                </span>
+                {[{t:"pinterest",label:"📌 Pinterest"},{t:"image",label:"🖼️ Image"},{t:"gif",label:"✨ Gif"},{t:"quote",label:"❝ Citation"},{t:"sticky",label:"🗒️ Note"},{t:"playlist",label:"🎵 Musique"},{t:"clock",label:"🌙 Horloge"}].map(b=>(
+                  <button key={b.t} onClick={()=>{ addWidget(b.t); setWidgetMenuOpen(false); }}
+                    className="px-4 py-2 rounded-full text-sm whitespace-nowrap transition hover:scale-105 shadow-lg"
+                    style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)", backdropFilter:"blur(8px)"}}>{b.label}</button>
+                ))}
+              </div>
+            )}
+            <button onClick={()=>setWidgetMenuOpen(!widgetMenuOpen)} aria-label="Ajouter un widget"
+              className="w-14 h-14 rounded-full flex items-center justify-center transition hover:scale-110 shadow-xl"
+              style={{background:"var(--primary)", color:"var(--bg)", boxShadow:"0 8px 24px rgba(var(--glow),0.5)"}}>
+              <Plus size={26} style={{transform: widgetMenuOpen?"rotate(45deg)":"none", transition:"transform .2s"}}/>
+            </button>
+          </div>
+        </>
+      )}
 
       <ControlPanel open={panelOpen} onClose={()=>setPanelOpen(false)} ctx={ctx}/>
     </>
