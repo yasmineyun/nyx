@@ -1690,6 +1690,15 @@ function ControlPanel({ open, onClose, ctx }) {
 
           {tab==="sections" && (
             <section>
+              <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Layout size={14}/> Mes deux grandes sections</h3>
+              <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Renomme-les comme tu veux (ex : Yasmine, Yasmeen).</p>
+              <ul className="space-y-1 mb-6">{sections.filter(s=>!s.custom).map(s=>(
+                <li key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+                  <span className="text-xs" style={{color:"var(--muted)"}}>{s.id==="witch"?"☾":"✿"}</span>
+                  <input value={s.name} onChange={e=>setSections(sections.map(x=>x.id===s.id?{...x,name:e.target.value}:x))} className="bg-transparent outline-none flex-1 text-sm" style={{color:"var(--text)"}}/>
+                </li>
+              ))}</ul>
+
               <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Layout size={14}/> Sections custom</h3>
               <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Ajoute tes propres coins. Ex : "Lecture", "Yoga"...</p>
               <div className="flex gap-2 mb-3">
