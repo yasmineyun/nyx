@@ -2455,7 +2455,12 @@ export default function App() {
           if (data.sectionThemes) setSectionThemes(data.sectionThemes);
           else if (data.theme) setSectionThemes({ moi: data.theme, witch: data.theme });
           if (data.font) setFont(data.font);
-          if (data.sections) setSections(data.sections);
+          if (data.sections) setSections(data.sections.map(s=>{
+            // migration : remplace les anciens noms par défaut
+            if (s.id==="moi" && (s.name==="Moi"||s.name==="moi")) return {...s, name:"Yasmine"};
+            if (s.id==="witch" && (s.name==="Witch"||s.name==="witch")) return {...s, name:"Yasmeen"};
+            return s;
+          }));
           if (data.overrides) setOverrides(data.overrides);
           if (data.tasks) setTasks(data.tasks);
           if (data.widgets) setWidgets(data.widgets);
