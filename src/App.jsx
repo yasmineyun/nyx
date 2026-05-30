@@ -202,6 +202,29 @@ function Backdrop({ kind }) {
   // helpers de génération
   const dots = (n, fn) => Array.from({ length: n }).map((_, i) => fn(i));
 
+  // ----- FOND CUSTOM GÉNÉRÉ ({gen:true, particle, count, motion, color, size, glow}) -----
+  if (typeof kind === "object" && kind.gen) {
+    const { particle="✨", count=20, motion="float", color="", size=20, glow=false } = kind;
+    const isEmoji = !/^#|rgb/.test(particle) && particle.length<=3 && !["dot","circle","star"].includes(particle);
+    const anim = { float:"floatY", fall:"fall", rise:"emberRise", cross:"flyAcross", twinkle:"twinkle", sway:"sway" }[motion] || "floatY";
+    const startStyle = (i)=> {
+      const base = { animationDelay:`${Math.random()* (motion==="cross"?6: motion==="fall"||motion==="rise"?10:4)}s`, animationDuration:`${(motion==="twinkle"?2:8)+Math.random()*8}s` };
+      if (motion==="fall") return { ...base, top:"-5%", left:`${Math.random()*100}%` };
+      if (motion==="rise") return { ...base, bottom:"-5%", left:`${Math.random()*100}%` };
+      if (motion==="cross") return { ...base, top:`${Math.random()*80}%`, left:"-5%" };
+      return { ...base, top:`${Math.random()*100}%`, left:`${Math.random()*100}%` };
+    };
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        {dots(Math.min(80,count), i=>(
+          isEmoji
+            ? <span key={i} className="absolute" style={{ ...startStyle(i), fontSize:`${size*0.7+Math.random()*size*0.6}px`, opacity:0.6, animationName:anim, animationTimingFunction:"linear", animationIterationCount:"infinite", filter:glow?`drop-shadow(0 0 6px ${color||"#fff"})`:"none" }}>{particle}</span>
+            : <span key={i} className="absolute rounded-full" style={{ ...startStyle(i), width:`${size*0.2+Math.random()*size*0.2}px`, height:`${size*0.2+Math.random()*size*0.2}px`, background:color||"#ffffff", opacity:0.5, animationName:anim, animationTimingFunction:"linear", animationIterationCount:"infinite", boxShadow:glow?`0 0 8px 2px ${color||"#fff"}`:"none" }}/>
+        ))}
+      </div>
+    );
+  }
+
   if (kind === "fullMoon") {
     return (
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
@@ -954,9 +977,11 @@ function Widget({ widget, onUpdate, onDelete }) {
 function TaskList({ scope, tasks, setTasks, soft=true }) {
   const [text, setText] = useState("");
   const list = tasks.filter(t=>t.scope===scope);
-  const add = () => { if(!text.trim()) return; setTasks([...tasks,{id:uid(),scope,text:text.trim(),done:false}]); setText(""); };
+  const add = () => { if(!text.trim()) return; setTasks([...tasks,{id:uid(),scope,text:text.trim(),done:false,created:Date.now()}]); setText(""); };
   const toggle = id => setTasks(tasks.map(t=>t.id===id?{...t,done:!t.done,justDone:!t.done}:t));
   const remove = id => setTasks(tasks.filter(t=>t.id!==id));
+  const reschedule = id => setTasks(tasks.map(t=>t.id===id?{...t,created:Date.now()}:t));
+  const ageDays = (t) => t.created ? (Date.now()-t.created)/86400000 : 0;
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
@@ -965,14 +990,18 @@ function TaskList({ scope, tasks, setTasks, soft=true }) {
         <button onClick={add} className="px-3 rounded-lg transition hover:scale-105" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={16}/></button>
       </div>
       <ul className="space-y-1.5">
-        {list.map(t=>(
-          <li key={t.id} className="group flex items-center gap-3 px-3 py-2 rounded-lg transition-all" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        {list.map(t=>{
+          const cursed = !t.done && ageDays(t) >= 3;
+          return (
+          <li key={t.id} className="group flex items-center gap-3 px-3 py-2 rounded-lg transition-all relative overflow-hidden" style={{background:"var(--surface)", border:cursed?"1px solid rgba(150,140,180,0.5)":"1px solid var(--border)"}}>
+            {cursed && <span className="absolute top-0 right-0 text-sm opacity-40 pointer-events-none select-none" title="tâche ensorcelée">🕸️</span>}
             <button onClick={()=>toggle(t.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${t.justDone?"animate-ping-once":""}`}
               style={{borderColor:"var(--primary)", background:t.done?"var(--primary)":"transparent"}}>{t.done && <Check size={12} style={{color:"var(--bg)"}}/>}</button>
-            <span className={`flex-1 text-sm transition ${t.done?"line-through opacity-50":""}`} style={{color:"var(--text)"}}>{t.text}</span>
+            <span className={`flex-1 text-sm transition ${t.done?"line-through opacity-50":""}`} style={{color:"var(--text)", filter:cursed?"blur(0.5px) grayscale(0.4)":"none", opacity:cursed?0.7:1}}>{t.text}{cursed && <em className="block text-[10px] not-italic" style={{color:"#9a8ab0"}}>✦ ensorcelée depuis {Math.floor(ageDays(t))}j — brise le sort !</em>}</span>
+            {cursed && <button onClick={()=>reschedule(t.id)} title="reprogrammer (briser le sort)" className="text-xs px-2 py-0.5 rounded-full" style={{background:"var(--surface2)", color:"var(--accent)"}}>↻</button>}
             <button onClick={()=>remove(t.id)} className="opacity-0 group-hover:opacity-100 transition"><X size={14} style={{color:"var(--muted)"}}/></button>
           </li>
-        ))}
+        );})}
         {list.length===0 && <li className="text-xs italic px-3 py-4 text-center" style={{color:"var(--muted)"}}>{soft?"Vide... Quelle douceur t'attend ?":"Rien encore. Pose ta première intention."}</li>}
       </ul>
     </div>
@@ -1029,10 +1058,28 @@ function JournalLock({ children, pin, setPin }) {
    ============================================================ */
 const STICKERS = ["✦","🌸","🦋","💗","⭐","🌙","🍃","☁️","🎀","💫","🌷","🤍","✨","🌿","💐"];
 
+const HEALING_QUESTIONS = [
+  "Quelle partie de toi as-tu peur de montrer aux autres, et pourquoi ?",
+  "Qu'est-ce que tu te reproches encore, et que pourrais-tu enfin te pardonner ?",
+  "De quoi as-tu vraiment besoin en ce moment, que tu n'oses pas demander ?",
+  "Quelle émotion évites-tu de ressentir, et que cherche-t-elle à te dire ?",
+  "Quand t'es-tu sentie pleinement toi-même pour la dernière fois ?",
+  "Quelle croyance sur toi-même as-tu héritée, qui n'est peut-être pas vraie ?",
+  "À qui ou à quoi as-tu du mal à dire non, et pourquoi ?",
+  "Qu'est-ce qui te ferait te sentir en sécurité, là, maintenant ?",
+  "Quel rêve as-tu mis de côté par peur du regard des autres ?",
+  "Comment parlerais-tu à ton enfant intérieur aujourd'hui ?",
+  "Qu'est-ce que tu fais pour les autres mais jamais pour toi ?",
+  "Quelle est la chose que tu attends des autres, et que tu pourrais t'offrir toi-même ?",
+  "De quoi es-tu fière cette semaine, même quelque chose de tout petit ?",
+  "Quelle peur t'empêche d'avancer, et qu'y a-t-il derrière elle ?",
+];
+
 function ScrapbookEditor({ pages, setPages }) {
   const [activePage, setActivePage] = useState(pages[0]?.id || null);
   const [choosing, setChoosing] = useState(false); // affiche le choix de format
   const current = pages.find(p=>p.id===activePage);
+  const healingQ = pickByDate(HEALING_QUESTIONS, "heal");
 
   const newPage = (format) => {
     const p = { id:uid(), format, title:"Nouvelle page", date:new Date().toISOString().slice(0,10), blocks:[], body:"" };
@@ -1054,6 +1101,14 @@ function ScrapbookEditor({ pages, setPages }) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className="text-2xl" style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}>✦ Mon journal intime ✦</h3>
         <button onClick={()=>setChoosing(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> Nouvelle page</button>
+      </div>
+
+      {/* Question de guérison du jour */}
+      <div className="rounded-2xl p-4 mb-5" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+        <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>🪞 Question de guérison du jour</p>
+        <p className="text-lg mb-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}>{healingQ}</p>
+        <button onClick={()=>{ const p={id:uid(), format:"note", title:"Réflexion", date:new Date().toISOString().slice(0,10), blocks:[], body:`🪞 ${healingQ}\n\n`}; setPages([p,...pages]); setActivePage(p.id); }}
+          className="text-xs px-3 py-1.5 rounded-full" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ écrire ma réponse</button>
       </div>
 
       {/* MODALE choix de format */}
@@ -1098,7 +1153,7 @@ function ScrapbookEditor({ pages, setPages }) {
           <input type="date" value={current.date} onChange={e=>updatePage({date:e.target.value})} className="bg-transparent outline-none text-xs" style={{color:"var(--muted)"}}/>
           {current.format!=="note" && (
             <div className="flex gap-1">
-              {[{t:"title",i:TypeIcon,l:"Titre"},{t:"text",i:AlignLeft,l:"Texte"},{t:"image",i:ImageIcon,l:"Image"},{t:"gif",i:Sparkles,l:"Gif"},{t:"pinterest",i:ImageIcon,l:"📌"},{t:"music",i:Music,l:"Musique"},{t:"sticker",i:Star,l:"Sticker"}].map(b=>{const I=b.i;return(
+              {[{t:"title",i:TypeIcon,l:"Titre"},{t:"text",i:AlignLeft,l:"Texte"},{t:"image",i:ImageIcon,l:"Image"},{t:"gif",i:Sparkles,l:"Gif"},{t:"pinterest",i:ImageIcon,l:"📌"},{t:"music",i:Music,l:"Musique"},{t:"divider",i:Sparkle,l:"Séparateur"},{t:"sticker",i:Star,l:"Sticker"}].map(b=>{const I=b.i;return(
                 <button key={b.t} onClick={()=>addBlock(b.t)} title={b.l} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition hover:scale-105"
                   style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={10}/><I size={12}/></button>
               )})}
@@ -1215,6 +1270,16 @@ function ScrapBlock({ block, onChange, onDelete }) {
               className="mt-1 w-full bg-transparent text-[10px] outline-none border-b py-0.5" style={{borderColor:"var(--border)", color:"var(--ink)"}}/>
           </div>
         )}
+        {block.type==="divider" && (
+          <div className="w-full text-center select-none" style={{fontSize:"20px", letterSpacing:"4px", color:"var(--accent)"}}>
+            {(()=>{ const styles={knots:"⋆ ❀ ⋆ ❀ ⋆ ❀ ⋆ ❀ ⋆", stars:"✦ ⋆ ✧ ⋆ ✦ ⋆ ✧ ⋆ ✦", barbed:"┄┅✕┄┅✕┄┅✕┄┅", ivy:"❧ ⟡ ❧ ⟡ ❧ ⟡ ❧"}; return styles[block.divStyle||"stars"]; })()}
+            <div className="flex justify-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition">
+              {[["knots","❀"],["stars","✦"],["barbed","✕"],["ivy","❧"]].map(([k,e])=>(
+                <button key={k} onClick={()=>onChange({divStyle:k})} className="text-xs px-1.5 py-0.5 rounded" style={{background:block.divStyle===k?"var(--primary)":"var(--surface2)", color:block.divStyle===k?"var(--bg)":"var(--text)"}}>{e}</button>
+              ))}
+            </div>
+          </div>
+        )}
         {block.type==="sticker" && (
           <div className="flex flex-col items-center">
             <span style={{fontSize:"clamp(28px,6vw,54px)"}}>{block.content||"✦"}</span>
@@ -1262,7 +1327,7 @@ async function fetchFromLink(url) {
   return { ok:false };
 }
 
-function PassionsList({ items, setItems }) {
+function PassionsList({ items, setItems, onMakeDR }) {
   const [openId, setOpenId] = useState(null);
   const [linkInput, setLinkInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1307,6 +1372,7 @@ function PassionsList({ items, setItems }) {
         <button onClick={()=>setOpenId(null)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour</button>
         <button onClick={()=>del(open.id)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}><Trash2 size={12} className="inline mr-1"/>supprimer</button>
         {open.link && <button onClick={()=>refetch(open)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--accent)"}}>{loading?"⏳":"↻"} re-remplir depuis le lien</button>}
+        {onMakeDR && <button onClick={()=>{ if(confirm("Créer une DR shifting à partir de cette œuvre ?")) onMakeDR(open); }} className="px-3 py-2 rounded-full text-sm" style={{background:"linear-gradient(180deg,#a875d4,#7a3a8a)", color:"#fff"}}>🌀 Transformer en DR</button>}
       </div>
       <div className="rounded-3xl overflow-hidden" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
         <div className="md:flex">
@@ -1329,6 +1395,23 @@ function PassionsList({ items, setItems }) {
                 <option style={{background:"var(--bg2)"}} value="favori">favori ⭐</option>
               </select>
               <input value={open.rating||""} onChange={e=>update(open.id,{rating:e.target.value})} placeholder="Note /10" className="text-sm px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+            </div>
+            {/* Watchlist Pro : progression épisodes */}
+            <div className="rounded-xl p-3" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs" style={{color:"var(--muted)"}}>Épisode</span>
+                <input type="number" value={open.epCur||""} onChange={e=>update(open.id,{epCur:e.target.value, lastWatch:Date.now()})} placeholder="5" className="w-16 text-sm px-2 py-1 rounded bg-transparent outline-none text-center" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+                <span className="text-xs" style={{color:"var(--muted)"}}>sur</span>
+                <input type="number" value={open.epTotal||""} onChange={e=>update(open.id,{epTotal:e.target.value})} placeholder="16" className="w-16 text-sm px-2 py-1 rounded bg-transparent outline-none text-center" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+              </div>
+              {open.epCur && open.epTotal && (<>
+                <div className="h-2 rounded-full overflow-hidden" style={{background:"var(--surface)"}}>
+                  <div className="h-full rounded-full" style={{width:`${Math.min(100,Math.round(open.epCur/open.epTotal*100))}%`, background:"var(--primary)"}}/>
+                </div>
+                <p className="text-[10px] mt-1" style={{color:"var(--muted)"}}>{Math.round(open.epCur/open.epTotal*100)}% · reste {Math.max(0,open.epTotal-open.epCur)} épisodes
+                  {open.lastWatch && (Date.now()-open.lastWatch)/86400000>=7 && open.epCur<open.epTotal && <span style={{color:"#e8a85a"}}> · ⚠️ pas regardé depuis +1 semaine</span>}
+                </p>
+              </>)}
             </div>
             <input value={open.link||""} onChange={e=>update(open.id,{link:e.target.value})} placeholder="Lien (Wikipedia...)" className="w-full text-xs px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--accent)"}}/>
             <div>
@@ -1375,6 +1458,14 @@ function PassionsList({ items, setItems }) {
             <div className="p-3">
               <h4 className="text-lg leading-tight" style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}>{i.title||"Sans titre"}</h4>
               {i.type && <p className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>{i.type}</p>}
+              {i.epCur && i.epTotal && (
+                <div className="mt-1.5">
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{background:"var(--surface2)"}}>
+                    <div className="h-full" style={{width:`${Math.min(100,Math.round(i.epCur/i.epTotal*100))}%`, background:"var(--primary)"}}/>
+                  </div>
+                  <p className="text-[9px] mt-0.5" style={{color:"var(--muted)"}}>ep {i.epCur}/{i.epTotal}{i.lastWatch && (Date.now()-i.lastWatch)/86400000>=7 && i.epCur<i.epTotal && " ⚠️"}</p>
+                </div>
+              )}
             </div>
           </button>
         ))}
@@ -1594,12 +1685,252 @@ const COLOR_KEYS = [
   { k:"--border", l:"Bordures" },
 ];
 
+/* ============================================================
+   ✦ GÉNÉRATEUR DE THÈMES (texte + image)
+   ============================================================ */
+function hexToRgb(h){ h=h.replace("#",""); if(h.length===3)h=h.split("").map(c=>c+c).join(""); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function rgbToHex(r,g,b){ return "#"+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,"0")).join(""); }
+function lighten(hex,amt){ const [r,g,b]=hexToRgb(hex); return rgbToHex(r+(255-r)*amt, g+(255-g)*amt, b+(255-b)*amt); }
+function darken(hex,amt){ const [r,g,b]=hexToRgb(hex); return rgbToHex(r*(1-amt), g*(1-amt), b*(1-amt)); }
+function luminance(hex){ const [r,g,b]=hexToRgb(hex); return (0.299*r+0.587*g+0.114*b)/255; }
+
+// construit un thème complet à partir d'une couleur principale + ambiance claire/sombre
+function buildTheme(name, primary, accent, dark, backdrop="dreamy") {
+  const bg = dark ? darken(primary,0.82) : lighten(primary,0.9);
+  const bg2 = dark ? darken(primary,0.7) : lighten(primary,0.8);
+  const text = dark ? lighten(primary,0.85) : darken(primary,0.7);
+  const muted = dark ? lighten(primary,0.5) : darken(primary,0.35);
+  const surface = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.6)";
+  const surface2 = dark ? darken(primary,0.55) : lighten(primary,0.65);
+  const border = dark ? "rgba(255,255,255,0.18)" : darken(primary,0.1);
+  const [pr,pg,pb]=hexToRgb(primary);
+  return {
+    name, icon: dark ? Moon : Sparkles,
+    vars: {
+      "--bg":bg, "--bg2":bg2, "--surface":surface, "--surface2":surface2, "--border":border,
+      "--text":text, "--muted":muted, "--primary":primary, "--accent":accent, "--ink":text,
+      "--paper":bg2, "--rose":accent, "--sage":lighten(accent,0.2), "--glow":`${pr},${pg},${pb}`,
+    },
+    backdrop, universe: dark?"witch":"soft", custom:true,
+  };
+}
+
+// texte → couleurs (mots-clés)
+function themeFromText(txt) {
+  const t = txt.toLowerCase();
+  const map = [
+    {k:["rose","pink","coquette","tendre"], p:"#e08aa8", a:"#f0c0d0", dark:false, bd:"petals"},
+    {k:["bleu","blue","océan","mer","ocean","ciel"], p:"#5a9ad0", a:"#a0d0e8", dark:false, bd:"ocean"},
+    {k:["vert","green","forêt","forest","nature","sauge"], p:"#6a9a6a", a:"#b0d0a0", dark:false, bd:"forest"},
+    {k:["violet","purple","sorcière","witch","magie","mystique"], p:"#9a6ad0", a:"#c0a0e8", dark:true, bd:"aurora"},
+    {k:["noir","dark","sombre","gothique","nuit","night"], p:"#6a6a8a", a:"#c8a86a", dark:true, bd:"starry"},
+    {k:["or","gold","doré","royal","luxe"], p:"#c8a martin04a", a:"#e8d49a", dark:true, bd:"dust"},
+    {k:["rouge","red","feu","fire","passion","sang"], p:"#c85a5a", a:"#e8a060", dark:true, bd:"embers"},
+    {k:["pêche","peach","abricot","orange","corail"], p:"#e89a6a", a:"#f0c0a0", dark:false, bd:"dust"},
+    {k:["lavande","lavender","lilas"], p:"#b39ad8", a:"#d8c0e8", dark:false, bd:"butterflies"},
+    {k:["menthe","mint","turquoise","emeraude","emerald"], p:"#5ac0a0", a:"#a0e8d0", dark:false, bd:"bubbles"},
+    {k:["cosmos","galaxie","cosmic","étoile","star","espace"], p:"#7a7ad0", a:"#e0c060", dark:true, bd:"cosmic"},
+    {k:["fée","fairy","féerique","y2k","glitter"], p:"#e0a0d8", a:"#a0e0d0", dark:false, bd:"glitter"},
+    {k:["jaune","yellow","soleil","sun","beurre","vanille"], p:"#e8c860", a:"#f0e0a0", dark:false, bd:"dust"},
+  ];
+  let found = null;
+  for (const m of map) if (m.k.some(w=>t.includes(w))) { found = m; break; }
+  if (!found) found = { p:"#a875d4", a:"#e0c97a", dark:t.includes("sombre")||t.includes("dark"), bd:"dreamy" };
+  // fix coquille gold
+  if (found.p.includes("martin")) found.p = "#c8a04a";
+  const isDark = t.includes("sombre")||t.includes("dark")||t.includes("nuit")||t.includes("noir") ? true : found.dark;
+  return buildTheme("✨ "+(txt.slice(0,18)||"Mon thème"), found.p, found.a, isDark, found.bd);
+}
+
+// image → couleurs dominantes via canvas
+function themeFromImage(imgUrl, name) {
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = ()=>{
+      try {
+        const c = document.createElement("canvas");
+        const s = 60; c.width=s; c.height=s;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img,0,0,s,s);
+        const data = ctx.getImageData(0,0,s,s).data;
+        let r=0,g=0,b=0,n=0; const buckets={};
+        for(let i=0;i<data.length;i+=4){
+          const R=data[i],G=data[i+1],B=data[i+2];
+          r+=R;g+=G;b+=B;n++;
+          const key=`${Math.round(R/40)}-${Math.round(G/40)}-${Math.round(B/40)}`;
+          buckets[key]=buckets[key]||{c:0,R:0,G:0,B:0};
+          buckets[key].c++; buckets[key].R+=R; buckets[key].G+=G; buckets[key].B+=B;
+        }
+        const avgLum=(0.299*r+0.587*g+0.114*b)/n/255;
+        // couleur dominante la plus saturée
+        const sorted=Object.values(buckets).sort((a,b)=>b.c-a.c).slice(0,5);
+        const dom=sorted[0];
+        const primary=rgbToHex(dom.R/dom.c, dom.G/dom.c, dom.B/dom.c);
+        const acc=sorted[1]||dom;
+        const accent=rgbToHex(acc.R/acc.c, acc.G/acc.c, acc.B/acc.c);
+        resolve(buildTheme(name||"✨ Thème image", primary, accent, avgLum<0.45, "dreamy"));
+      } catch(e){ reject(e); }
+    };
+    img.onerror = ()=>reject(new Error("image"));
+    img.src = imgUrl;
+  });
+}
+
+function ThemeGenerator({ customThemes, setCustomThemes, setTheme }) {
+  const [mode, setMode] = useState("text"); // text | image
+  const [txt, setTxt] = useState("");
+  const [imgUrl, setImgUrl] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const genText = () => {
+    if (!txt.trim()) return;
+    setErr(""); setPreview(themeFromText(txt.trim()));
+  };
+  const genImage = async (url) => {
+    setErr(""); setBusy(true);
+    try { const th = await themeFromImage(url, "✨ "+(txt.trim()||"Thème image")); setPreview(th); }
+    catch(e){ setErr("Image impossible à lire (essaie une autre URL ou un upload)"); }
+    setBusy(false);
+  };
+  const onFile = (e) => {
+    const f = e.target.files?.[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{ setImgUrl(r.result); genImage(r.result); };
+    r.readAsDataURL(f);
+  };
+  const save = () => {
+    if (!preview) return;
+    const key = "custom_"+uid();
+    setCustomThemes({ ...customThemes, [key]: preview });
+    setTheme(key);
+    setPreview(null); setTxt(""); setImgUrl("");
+  };
+
+  return (
+    <section className="mb-8 rounded-2xl p-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+      <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-2" style={{color:"var(--accent)"}}><Wand2 size={14}/> Générateur de thème</h3>
+      <p className="text-[11px] italic mb-3" style={{color:"var(--muted)"}}>Décris une ambiance OU envoie une image. Le thème généré sera gardé avec les autres.</p>
+
+      <div className="flex gap-2 mb-3">
+        <button onClick={()=>setMode("text")} className="flex-1 py-1.5 rounded-lg text-xs" style={{background:mode==="text"?"var(--primary)":"var(--surface2)", color:mode==="text"?"var(--bg)":"var(--text)"}}>✍️ Par texte</button>
+        <button onClick={()=>setMode("image")} className="flex-1 py-1.5 rounded-lg text-xs" style={{background:mode==="image"?"var(--primary)":"var(--surface2)", color:mode==="image"?"var(--bg)":"var(--text)"}}>🖼️ Par image</button>
+      </div>
+
+      {mode==="text" ? (
+        <div className="flex gap-2">
+          <input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==="Enter"&&genText()} placeholder="ex: cottage rose et doux, sorcière sombre..."
+            className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <button onClick={genText} className="px-3 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>✦</button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <input value={imgUrl} onChange={e=>setImgUrl(e.target.value)} placeholder="colle une URL d'image"
+            className="w-full px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <div className="flex gap-2">
+            <button onClick={()=>imgUrl&&genImage(imgUrl)} disabled={busy||!imgUrl} className="flex-1 py-2 rounded-lg text-xs disabled:opacity-40" style={{background:"var(--primary)", color:"var(--bg)"}}>{busy?"...":"depuis l'URL"}</button>
+            <label className="flex-1 py-2 rounded-lg text-xs text-center cursor-pointer" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>
+              uploader<input type="file" accept="image/*" onChange={onFile} className="hidden"/>
+            </label>
+          </div>
+        </div>
+      )}
+      {err && <p className="text-xs mt-2" style={{color:"#c89a9a"}}>{err}</p>}
+
+      {preview && (
+        <div className="mt-3 rounded-xl p-3 animate-fade-up" style={{background:preview.vars["--bg"], border:`1px solid ${preview.vars["--border"]}`}}>
+          <p className="text-xs mb-2" style={{color:preview.vars["--text"]}}>Aperçu : {preview.name}</p>
+          <div className="flex gap-1 mb-3">
+            {["--bg","--surface2","--primary","--accent","--text"].map(k=>(<span key={k} style={{width:"26px",height:"26px",borderRadius:"6px",background:preview.vars[k],border:"1px solid rgba(128,128,128,0.3)"}}/>))}
+          </div>
+          <input value={preview.name.replace("✨ ","")} onChange={e=>setPreview({...preview, name:"✨ "+e.target.value})} className="w-full text-xs px-2 py-1 mb-2 rounded bg-transparent outline-none" style={{border:`1px solid ${preview.vars["--border"]}`, color:preview.vars["--text"]}}/>
+          <div className="flex gap-2">
+            <button onClick={save} className="flex-1 py-2 rounded-lg text-xs" style={{background:preview.vars["--primary"], color:preview.vars["--bg"]}}>✦ enregistrer & appliquer</button>
+            <button onClick={()=>setPreview(null)} className="px-3 py-2 rounded-lg text-xs" style={{background:"transparent", border:`1px solid ${preview.vars["--border"]}`, color:preview.vars["--text"]}}>annuler</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BackdropGenerator({ customBackdrops, setCustomBackdrops, onApply }) {
+  const [cfg, setCfg] = useState({ name:"Mon fond", particle:"✨", count:24, motion:"float", color:"#ffd0ee", size:20, glow:true });
+  const [showPreview, setShowPreview] = useState(false);
+  const particleChoices = ["✨","🌸","🩷","⭐","🦋","🍂","🌙","💫","❄️","🌺","🔮","🍄","💗","🕯️","🌿","💧","dot"];
+  const motions = [{k:"float",l:"flotte"},{k:"fall",l:"tombe"},{k:"rise",l:"monte"},{k:"cross",l:"traverse"},{k:"twinkle",l:"scintille"},{k:"sway",l:"ondule"}];
+
+  const save = () => {
+    const key = "bg_"+uid();
+    setCustomBackdrops({ ...customBackdrops, [key]: { gen:true, ...cfg } });
+    onApply(key);
+  };
+
+  return (
+    <section className="mb-6 rounded-2xl p-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+      <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-2" style={{color:"var(--accent)"}}><Wand2 size={14}/> Générateur de fond animé</h3>
+
+      {/* particule */}
+      <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Particule</label>
+      <div className="flex flex-wrap gap-1 mb-3 mt-1">
+        {particleChoices.map(p=>(
+          <button key={p} onClick={()=>setCfg({...cfg, particle:p})} className="w-8 h-8 rounded-lg text-sm flex items-center justify-center" style={{background:cfg.particle===p?"var(--primary)":"var(--surface2)", border:"1px solid var(--border)", color:cfg.particle===p?"var(--bg)":"var(--text)"}}>{p==="dot"?"●":p}</button>
+        ))}
+      </div>
+
+      {/* mouvement */}
+      <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Mouvement</label>
+      <div className="flex flex-wrap gap-1 mb-3 mt-1">
+        {motions.map(m=>(
+          <button key={m.k} onClick={()=>setCfg({...cfg, motion:m.k})} className="px-2.5 py-1 rounded-full text-xs" style={{background:cfg.motion===m.k?"var(--primary)":"var(--surface2)", border:"1px solid var(--border)", color:cfg.motion===m.k?"var(--bg)":"var(--text)"}}>{m.l}</button>
+        ))}
+      </div>
+
+      {/* densité + taille + couleur + glow */}
+      <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+        <label style={{color:"var(--muted)"}}>Densité : {cfg.count}
+          <input type="range" min="6" max="80" value={cfg.count} onChange={e=>setCfg({...cfg, count:parseInt(e.target.value)})} className="w-full"/>
+        </label>
+        <label style={{color:"var(--muted)"}}>Taille : {cfg.size}
+          <input type="range" min="8" max="48" value={cfg.size} onChange={e=>setCfg({...cfg, size:parseInt(e.target.value)})} className="w-full"/>
+        </label>
+        <label className="flex items-center gap-2" style={{color:"var(--muted)"}}>Couleur
+          <input type="color" value={cfg.color} onChange={e=>setCfg({...cfg, color:e.target.value})} className="w-7 h-7 rounded cursor-pointer bg-transparent"/>
+        </label>
+        <label className="flex items-center gap-2" style={{color:"var(--muted)"}}>
+          <input type="checkbox" checked={cfg.glow} onChange={e=>setCfg({...cfg, glow:e.target.checked})}/> lueur ✨
+        </label>
+      </div>
+
+      <input value={cfg.name} onChange={e=>setCfg({...cfg, name:e.target.value})} placeholder="nom du fond" className="w-full text-xs px-2 py-1.5 mb-2 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+
+      <div className="flex gap-2">
+        <button onClick={()=>setShowPreview(true)} className="flex-1 py-2 rounded-lg text-xs" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>👁️ aperçu</button>
+        <button onClick={save} className="flex-1 py-2 rounded-lg text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ enregistrer & appliquer</button>
+      </div>
+
+      {/* aperçu plein écran */}
+      {showPreview && (
+        <div className="fixed inset-0 z-[80]" style={{background:"var(--bg)"}}>
+          <Backdrop kind={{ gen:true, ...cfg }}/>
+          <button onClick={()=>setShowPreview(false)} className="absolute top-4 right-4 z-10 px-4 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>fermer l'aperçu</button>
+          <p className="absolute bottom-6 inset-x-0 text-center text-sm italic" style={{color:"var(--muted)"}}>aperçu de « {cfg.name} »</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ControlPanel({ open, onClose, ctx }) {
   const {
     theme, setTheme, font, setFont, sections, setSections,
     activeSection, activeSub, subTabsFor,
     overrides, setOverrides,
-    customRituals, setCustomRituals, customTips, setCustomTips, customAffirm, setCustomAffirm
+    customRituals, setCustomRituals, customTips, setCustomTips, customAffirm, setCustomAffirm,
+    ALL_THEMES, customThemes, setCustomThemes,
+    customBackdrops, setCustomBackdrops
   } = ctx;
   const [tab, setTab] = useState("look");
   const [newSection, setNewSection] = useState("");
@@ -1640,11 +1971,17 @@ function ControlPanel({ open, onClose, ctx }) {
           {tab==="look" && (<>
             <section className="mb-8">
               <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Palette size={14}/> Thème global</h3>
-              <div className="grid grid-cols-2 gap-2">{Object.entries(THEMES).map(([k,t])=>{ const I=t.icon; return (
-                <button key={k} onClick={()=>setTheme(k)} className="p-3 rounded-xl text-left transition-all" style={{background:"var(--surface)", border:`1px solid ${theme===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
-                  <I size={16} className="mb-1"/><div className="text-xs">{t.name}</div></button>
+              <div className="grid grid-cols-2 gap-2">{Object.entries(ALL_THEMES).map(([k,t])=>{ const I=t.icon||Sparkles; return (
+                <button key={k} onClick={()=>setTheme(k)} className="p-3 rounded-xl text-left transition-all relative group" style={{background:"var(--surface)", border:`1px solid ${theme===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
+                  <I size={16} className="mb-1"/><div className="text-xs">{t.name}</div>
+                  {t.custom && <button onClick={(e)=>{ e.stopPropagation(); if(confirm("Supprimer ce thème généré ?")){ const c={...customThemes}; delete c[k]; setCustomThemes(c); } }} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={12}/></button>}
+                </button>
               );})}</div>
             </section>
+
+            {/* GÉNÉRATEUR DE THÈME */}
+            <ThemeGenerator customThemes={customThemes} setCustomThemes={setCustomThemes} setTheme={setTheme}/>
+
             <section className="mb-8">
               <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Type size={14}/> Police</h3>
               <select value={font} onChange={e=>setFont(e.target.value)} className="w-full p-3 rounded-xl bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
@@ -1663,11 +2000,23 @@ function ControlPanel({ open, onClose, ctx }) {
 
             <section className="mb-6">
               <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Eye size={14}/> Arrière-plan animé</h3>
-              <div className="grid grid-cols-3 gap-2">{Object.entries(BACKDROPS).map(([k,b])=>(
-                <button key={k} onClick={()=>setOv({backdrop:k})} className="p-2 rounded-xl text-center transition" style={{background:(ov.backdrop||"")===k?"rgba(var(--glow),0.2)":"var(--surface)", border:`1px solid ${(ov.backdrop||"")===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
-                  <div className="text-xl">{b.emoji}</div><div className="text-[9px] leading-tight mt-1">{b.name}</div></button>
-              ))}</div>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(BACKDROPS).map(([k,b])=>(
+                  <button key={k} onClick={()=>setOv({backdrop:k})} className="p-2 rounded-xl text-center transition" style={{background:(ov.backdrop||"")===k?"rgba(var(--glow),0.2)":"var(--surface)", border:`1px solid ${(ov.backdrop||"")===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
+                    <div className="text-xl">{b.emoji}</div><div className="text-[9px] leading-tight mt-1">{b.name}</div></button>
+                ))}
+                {Object.entries(customBackdrops).map(([k,b])=>(
+                  <button key={k} onClick={()=>setOv({backdrop:k})} className="p-2 rounded-xl text-center transition relative group" style={{background:(ov.backdrop||"")===k?"rgba(var(--glow),0.2)":"var(--surface)", border:`1px solid ${(ov.backdrop||"")===k?"var(--primary)":"var(--accent)"}`, color:"var(--text)"}}>
+                    <div className="text-xl">{b.particle}</div><div className="text-[9px] leading-tight mt-1">{b.name}</div>
+                    <span onClick={(e)=>{ e.stopPropagation(); if(confirm("Supprimer ce fond ?")){ const c={...customBackdrops}; delete c[k]; setCustomBackdrops(c); } }} className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={10}/></span>
+                  </button>
+                ))}
+              </div>
             </section>
+
+            {/* GÉNÉRATEUR DE FOND */}
+            <BackdropGenerator customBackdrops={customBackdrops} setCustomBackdrops={setCustomBackdrops} onApply={(k)=>setOv({backdrop:k})}/>
+
 
             <section className="mb-6">
               <h3 className="flex items-center gap-2 text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}><Paintbrush size={14}/> Couleurs</h3>
@@ -1758,9 +2107,19 @@ function rgbFromVar(key, theme){ return THEMES[theme]?.vars[key] || "#888888"; }
 /* ============================================================
    ✦ SECTION RÊVES — ambiance dreamy Y2K (image 2)
    ============================================================ */
+function dreamAnalysis(d) {
+  const lucid = d.lucid;
+  if (d.drTag==="dr") return lucid
+    ? "✦ Rêve lucide DANS ta DR — c'est énorme ! Tu as gardé conscience pendant que tu y étais. Au réveil, écris vite chaque détail : ton cerveau vient de tracer le chemin vers ta réalité désirée."
+    : "✦ Tu as frôlé ta DR cette nuit. Même sans lucidité, ton subconscient s'aligne. Relis ton script avant de dormir pour renforcer le pont.";
+  if (d.drTag==="symptom") return "🌀 Symptôme de shifting détecté. Sensations de flottement, voix, vibrations, ou décor familier de ta DR = ton énergie se synchronise. Continue tes méthodes, tu te rapproches.";
+  if (d.drTag==="premonition") return "🔮 Tu ressens une prémonition. Note la date et les détails précis. Reviens-y dans quelques semaines pour voir si ça se réalise — tiens un registre de tes synchronicités.";
+  return "";
+}
+
 function DreamJournal({ entries, setEntries }) {
   const [editing, setEditing] = useState(null);
-  const blank = { id:null, date:new Date().toISOString().slice(0,10), title:"", lucid:false, mood:"", symbols:"", content:"" };
+  const blank = { id:null, date:new Date().toISOString().slice(0,10), title:"", lucid:false, mood:"", symbols:"", content:"", drTag:"none" };
   const [draft, setDraft] = useState(blank);
   const save=()=>{ if(draft.id) setEntries(entries.map(e=>e.id===draft.id?draft:e)); else setEntries([{...draft,id:uid()},...entries]); setEditing(null); setDraft(blank); };
 
@@ -1789,9 +2148,6 @@ function DreamJournal({ entries, setEntries }) {
       <div className="grid md:grid-cols-4 gap-0">
         {/* sidebar gauche */}
         <div className="md:col-span-1 p-4 space-y-3" style={{background:"rgba(40,20,70,0.6)", borderBottom:"1px solid rgba(255,255,255,0.2)"}}>
-          {["✦ archive","✦ about","✦ credits"].map(s=>(
-            <div key={s} className="rounded-full px-4 py-2 text-center text-sm" style={{background:"linear-gradient(180deg, #8a6ac0, #6a4a9a)", border:"1px solid #c8a0e8", color:"#fff", textShadow:"1px 1px 2px #000"}}>{s}</div>
-          ))}
           <div className="rounded-lg p-3 text-[11px] leading-relaxed" style={{background:"rgba(60,40,90,0.6)", border:"1px solid #c8a0e8", color:"#e0d0f5"}}>
             Ici se logent les récits de tes rêves passés. Le symbole ✦ marque un rêve dont tu te souviens peu — note quand même, ton inconscient parle.
           </div>
@@ -1818,6 +2174,18 @@ function DreamJournal({ entries, setEntries }) {
               </div>
               <input placeholder="symboles présents (eau, chat, vol...)" value={draft.symbols} onChange={e=>setDraft({...draft,symbols:e.target.value})} className="w-full px-3 py-2 mb-2 rounded bg-transparent outline-none text-sm" style={{border:"1px solid rgba(255,255,255,0.3)", color:"#fff"}}/>
               <textarea placeholder="Raconte ton rêve..." rows={5} value={draft.content} onChange={e=>setDraft({...draft,content:e.target.value})} className="w-full px-3 py-2 mb-2 rounded bg-transparent outline-none text-sm" style={{border:"1px solid rgba(255,255,255,0.3)", color:"#fff"}}/>
+              <label className="text-[11px] block mb-1" style={{color:"#e0d0f5"}}>🌀 Dream Linker — ce rêve est :</label>
+              <select value={draft.drTag||"none"} onChange={e=>setDraft({...draft,drTag:e.target.value})} className="w-full px-3 py-2 mb-2 rounded bg-transparent outline-none text-sm" style={{border:"1px solid rgba(255,255,255,0.3)", color:"#fff"}}>
+                <option style={{background:"#4a3a7a"}} value="none">un rêve normal</option>
+                <option style={{background:"#4a3a7a"}} value="dr">✦ un rêve de ma DR</option>
+                <option style={{background:"#4a3a7a"}} value="symptom">🌀 un symptôme de shifting</option>
+                <option style={{background:"#4a3a7a"}} value="premonition">🔮 une prémonition</option>
+              </select>
+              {draft.drTag && draft.drTag!=="none" && (
+                <div className="rounded-lg p-3 mb-2 text-[11px] leading-relaxed" style={{background:"rgba(255,158,216,0.15)", border:"1px solid #ff9ed8", color:"#fff"}}>
+                  {dreamAnalysis(draft)}
+                </div>
+              )}
               <div className="flex gap-2">
                 <button onClick={save} className="px-4 py-2 rounded text-sm" style={{background:"linear-gradient(180deg, #ff9ed8, #d870b0)", color:"#fff"}}>Enregistrer</button>
                 <button onClick={()=>setEditing(null)} className="px-4 py-2 rounded text-sm" style={{background:"rgba(255,255,255,0.15)", color:"#fff"}}>Annuler</button>
@@ -1835,6 +2203,7 @@ function DreamJournal({ entries, setEntries }) {
                   <span className="text-xs" style={{color:"#c8a0e8"}}>{e.date}</span>
                 </div>
                 {(e.mood||e.symbols) && <p className="text-[11px] mb-2" style={{color:"#d4b0e8"}}>{e.mood && `💭 ${e.mood}`}{e.mood&&e.symbols&&" · "}{e.symbols && `🔮 ${e.symbols}`}</p>}
+                {e.drTag && e.drTag!=="none" && <span className="inline-block text-[10px] px-2 py-0.5 rounded-full mb-2" style={{background:"rgba(255,158,216,0.25)", color:"#ffd0ee"}}>{e.drTag==="dr"?"✦ rêve de DR":e.drTag==="symptom"?"🌀 symptôme shifting":"🔮 prémonition"}</span>}
                 <p className="text-sm leading-snug" style={{color:"#eaddf5", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden"}}>{e.content}</p>
                 <div className="flex items-center justify-between mt-3">
                   <span className="inline-flex items-center gap-1 text-xs" style={{color:"#ff9ed8"}}>✦ ouvrir & lire</span>
@@ -1863,20 +2232,29 @@ const SUBTABS = {
     {k:"wishlist",label:"Wishlist",icon:ShoppingBag},
     {k:"gratitude",label:"Gratitude",icon:Sparkles},
     {k:"mood",label:"Mood",icon:Sun},
+    {k:"cycle",label:"Cycle",icon:Moon},
+    {k:"comfort",label:"Comfort",icon:Heart},
+    {k:"outfits",label:"Tenues",icon:Sparkle},
+    {k:"ost",label:"OST 2026",icon:Music},
     {k:"journal",label:"Journal secret",icon:Lock},
   ],
   witch: [
     {k:"tavern",label:"Tavern",icon:BookMarked},
     {k:"moon",label:"La Lune",icon:Moon},
+    {k:"wheel",label:"Roue de l'année",icon:Sun},
+    {k:"pendulum",label:"Pendule",icon:Gem},
     {k:"ritual",label:"Rituel du jour",icon:Flame},
     {k:"grimoire",label:"Grimoire",icon:BookOpen},
     {k:"crystals",label:"Cristaux",icon:Gem},
     {k:"herbs",label:"Herbes",icon:Leaf},
     {k:"tarot",label:"Tarot",icon:Stars},
     {k:"shifting",label:"Shifting & DR",icon:Compass},
+    {k:"anchor",label:"Ancre DR",icon:Zap},
+    {k:"fairy",label:"Royaume Fée",icon:Flower2},
     {k:"astral",label:"Astral",icon:CloudMoon},
     {k:"dreams",label:"Rêves",icon:CloudMoon},
     {k:"intentions",label:"Manifest",icon:Wand2},
+    {k:"bottle",label:"Bouteille à la mer",icon:Sparkle},
   ],
 };
 
@@ -2126,6 +2504,260 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
           ))}
         </div>
       </div>
+
+      {/* RÈGLES DE SÉCURITÉ (toggles) */}
+      <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🛡️ Règles absolues de sécurité</h3>
+          <button onClick={()=>onUpdate({safety:[...(dr.safety||[]), {id:uid(), text:"Nouvelle règle...", on:true}]})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> ajouter</button>
+        </div>
+        {(!dr.safety || dr.safety.length===0) && (
+          <button onClick={()=>onUpdate({safety:[
+            {id:uid(),text:"Je ne peux pas ressentir de douleur extrême",on:true},
+            {id:uid(),text:"Je me souviens de tout à mon retour",on:true},
+            {id:uid(),text:"1 heure CR = 1 mois DR",on:true},
+            {id:uid(),text:"Mon mot de passe de retour fonctionne toujours",on:true},
+          ]})} className="text-sm italic underline" style={{color:"var(--accent)"}}>✦ charger les règles de base</button>
+        )}
+        <div className="space-y-2">
+          {(dr.safety||[]).map(s=>(
+            <div key={s.id} className="flex items-center gap-3 rounded-xl p-3 group" style={{background: s.on?"rgba(var(--glow),0.12)":"var(--surface2)", border:`1px solid ${s.on?"var(--accent)":"var(--border)"}`}}>
+              <button onClick={()=>onUpdate({safety:dr.safety.map(x=>x.id===s.id?{...x,on:!x.on}:x)})}
+                className="flex-shrink-0 rounded-full transition" style={{width:"42px", height:"24px", background:s.on?"var(--primary)":"var(--border)", position:"relative"}}>
+                <span style={{position:"absolute", top:"2px", left:s.on?"20px":"2px", width:"20px", height:"20px", borderRadius:"50%", background:"#fff", transition:"left .2s"}}/>
+              </button>
+              <input value={s.text} onChange={e=>onUpdate({safety:dr.safety.map(x=>x.id===s.id?{...x,text:e.target.value}:x)})} className="flex-1 bg-transparent outline-none text-sm" style={{color:"var(--text)"}}/>
+              {s.on && <span title="protection active" style={{color:"var(--accent)"}}>🛡️</span>}
+              <button onClick={()=>onUpdate({safety:dr.safety.filter(x=>x.id!==s.id)})} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={14}/></button>
+            </div>
+          ))}
+        </div>
+        {(dr.safety||[]).some(s=>s.on) && <p className="text-xs italic mt-3 text-center" style={{color:"var(--accent)"}}>✦ Bouclier lumineux actif — ton subconscient a enregistré ta sécurité ✦</p>}
+      </div>
+
+      {/* GARDE-ROBE & INVENTAIRE */}
+      <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <h3 className="text-2xl mb-4" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>👗 Garde-robe & sac à dos</h3>
+        <div className="grid md:grid-cols-2 gap-5">
+          {/* tenues */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm uppercase tracking-widest" style={{color:"var(--muted)"}}>Mes tenues</h4>
+              <button onClick={()=>onUpdate({wardrobe:[...(dr.wardrobe||[]), {id:uid(), name:"Tenue", img:""}]})} className="text-xs flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={12}/> ajouter</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(dr.wardrobe||[]).map(w=>(
+                <div key={w.id} className="group relative rounded-xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
+                  {w.img ? <img src={w.img} alt="" className="w-full object-cover" style={{aspectRatio:"3/4"}}/> : <div className="w-full flex items-center justify-center text-2xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>👗</div>}
+                  <div className="p-1.5" style={{background:"var(--surface2)"}}>
+                    <input value={w.img} onChange={e=>onUpdate({wardrobe:dr.wardrobe.map(x=>x.id===w.id?{...x,img:e.target.value}:x)})} placeholder="URL" className="w-full text-[9px] bg-transparent outline-none mb-0.5" style={{color:"var(--muted)"}}/>
+                    <input value={w.name} onChange={e=>onUpdate({wardrobe:dr.wardrobe.map(x=>x.id===w.id?{...x,name:e.target.value}:x)})} placeholder="nom" className="w-full text-[11px] bg-transparent outline-none" style={{color:"var(--text)"}}/>
+                  </div>
+                  <button onClick={()=>onUpdate({wardrobe:dr.wardrobe.filter(x=>x.id!==w.id)})} className="absolute top-1 right-1 p-0.5 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={10}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* inventaire */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm uppercase tracking-widest" style={{color:"var(--muted)"}}>🎒 Mon sac à dos</h4>
+              <button onClick={()=>onUpdate({inventory:[...(dr.inventory||[]), {id:uid(), text:"objet magique"}]})} className="text-xs flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={12}/> ajouter</button>
+            </div>
+            <div className="space-y-1.5">
+              {(dr.inventory||[]).map(it=>(
+                <div key={it.id} className="flex items-center gap-2 rounded-lg p-2 group" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+                  <span>✦</span>
+                  <input value={it.text} onChange={e=>onUpdate({inventory:dr.inventory.map(x=>x.id===it.id?{...x,text:e.target.value}:x)})} className="flex-1 bg-transparent outline-none text-sm" style={{color:"var(--text)"}}/>
+                  <button onClick={()=>onUpdate({inventory:dr.inventory.filter(x=>x.id!==it.id)})} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={12}/></button>
+                </div>
+              ))}
+              {(!dr.inventory||dr.inventory.length===0) && <p className="text-xs italic" style={{color:"var(--muted)"}}>baguette, grimoire, bijou de protection...</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SCÉNARIOS WHAT IF */}
+      <DRScenarios dr={dr} onUpdate={onUpdate}/>
+
+      {/* RELATIONS, CARTE, GAZETTE */}
+      <DRSocialGraph dr={dr} onUpdate={onUpdate}/>
+      <DRMap dr={dr} onUpdate={onUpdate}/>
+      <DRGazette dr={dr} onUpdate={onUpdate}/>
+    </div>
+  );
+}
+
+/* Simulateur de scénarios immersifs */
+function DRScenarios({ dr, onUpdate }) {
+  const [immersive, setImmersive] = useState(null);
+  const scenarios = dr.scenarios || [];
+  return (
+    <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎭 Mes scénarios clés</h3>
+        <button onClick={()=>onUpdate({scenarios:[...scenarios, {id:uid(), title:"Nouvelle scène", text:""}]})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> ajouter</button>
+      </div>
+      <div className="space-y-3">
+        {scenarios.map(sc=>(
+          <div key={sc.id} className="rounded-xl p-3 group" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+            <div className="flex items-center gap-2 mb-2">
+              <input value={sc.title} onChange={e=>onUpdate({scenarios:scenarios.map(x=>x.id===sc.id?{...x,title:e.target.value}:x)})} className="flex-1 text-lg bg-transparent outline-none" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}/>
+              <button onClick={()=>setImmersive(sc)} className="px-3 py-1 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ visualiser</button>
+              <button onClick={()=>onUpdate({scenarios:scenarios.filter(x=>x.id!==sc.id)})} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={14}/></button>
+            </div>
+            <textarea value={sc.text} onChange={e=>onUpdate({scenarios:scenarios.map(x=>x.id===sc.id?{...x,text:e.target.value}:x)})} rows={3} placeholder="Décris le début de ta scène... « Le jour où j'apprends à voler... »" className="w-full bg-transparent outline-none text-sm" style={{color:"var(--text)", fontFamily:'"Caveat",cursive', fontSize:"17px"}}/>
+          </div>
+        ))}
+        {scenarios.length===0 && <p className="text-sm italic text-center py-4" style={{color:"var(--muted)"}}>Écris tes scènes à shadow-shifter ✦</p>}
+      </div>
+
+      {/* mode immersion */}
+      {immersive && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-8 animate-fade-up" style={{background:"linear-gradient(160deg, var(--bg), var(--bg2))"}}>
+          <Backdrop kind="dreamy"/>
+          <div className="relative max-w-lg text-center">
+            <h2 className="text-3xl mb-6" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)", textShadow:"0 0 20px rgba(var(--glow),0.5)"}}>{immersive.title}</h2>
+            <p className="text-xl leading-relaxed" style={{fontFamily:'"Cormorant Garamond",serif', color:"var(--text)", lineHeight:"1.9"}}>{immersive.text||"(écris ta scène pour la visualiser)"}</p>
+            <p className="text-sm italic mt-8" style={{color:"var(--muted)"}}>Ferme les yeux... laisse la scène se dérouler... 🌙</p>
+            <button onClick={()=>setImmersive(null)} className="mt-6 px-5 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>revenir</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* 👥 Tableau des relations */
+const REL_LEVELS = [
+  {k:"ennemi", l:"Ennemi", emoji:"⚔️", color:"#c85a5a"},
+  {k:"connaissance", l:"Connaissance", emoji:"🤝", color:"#9a9aa8"},
+  {k:"ami", l:"Ami", emoji:"💛", color:"#e8c860"},
+  {k:"meilleur", l:"Meilleur ami", emoji:"💚", color:"#6ac09a"},
+  {k:"amoureux", l:"Amoureux", emoji:"💗", color:"#e87a9a"},
+  {k:"ame", l:"Âme sœur", emoji:"💞", color:"#d060c0"},
+];
+const REL_LINES = {
+  amoureux:["« Je te chercherais dans mille vies. »","« Tu es mon endroit préféré. »","« Reste encore un peu. »"],
+  ame:["« Je t'ai reconnue avant même de te voir. »","« Toi et moi, contre le reste du monde. »"],
+  meilleur:["« On est une équipe, n'oublie jamais ça. »","« Je serai toujours là, peu importe quoi. »"],
+  ami:["« Hé, ça faisait longtemps ! »","« Allez viens, on va s'amuser. »"],
+  connaissance:["« Oh, salut... on se connaît, non ? »"],
+  ennemi:["« Ne crois pas que j'ai oublié. »","« Tu ne devrais pas être là. »"],
+};
+function DRSocialGraph({ dr, onUpdate }) {
+  const people = dr.people || [];
+  const [line, setLine] = useState(null);
+  const add = ()=>onUpdate({people:[...people,{id:uid(),name:"",img:"",level:"ami",affinity:50}]});
+  const upd = (id,patch)=>onUpdate({people:people.map(p=>p.id===id?{...p,...patch}:p)});
+  const speak = (p)=>{ const pool=REL_LINES[p.level]||REL_LINES.ami; setLine({name:p.name||"?", text:pool[Math.floor(Math.random()*pool.length)]}); };
+  return (
+    <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>👥 Mes relations en DR</h3>
+        <button onClick={add} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> ajouter</button>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {people.map(p=>{
+          const lvl = REL_LEVELS.find(l=>l.k===p.level)||REL_LEVELS[2];
+          return (
+          <div key={p.id} className="rounded-xl p-3 group" style={{background:"var(--surface2)", border:`1px solid ${lvl.color}66`}}>
+            <div className="flex items-center gap-3 mb-2">
+              {p.img ? <img src={p.img} alt="" className="w-12 h-12 rounded-full object-cover" style={{border:`2px solid ${lvl.color}`}}/> : <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl" style={{background:"var(--surface)"}}>{lvl.emoji}</div>}
+              <div className="flex-1 min-w-0">
+                <input value={p.name} onChange={e=>upd(p.id,{name:e.target.value})} placeholder="nom du personnage" className="w-full bg-transparent outline-none text-sm" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)", fontSize:"16px"}}/>
+                <input value={p.img} onChange={e=>upd(p.id,{img:e.target.value})} placeholder="URL photo" className="w-full bg-transparent outline-none text-[9px]" style={{color:"var(--muted)"}}/>
+              </div>
+              <button onClick={()=>onUpdate({people:people.filter(x=>x.id!==p.id)})} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={14}/></button>
+            </div>
+            <select value={p.level} onChange={e=>upd(p.id,{level:e.target.value})} className="w-full text-xs px-2 py-1 rounded bg-transparent outline-none mb-2" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
+              {REL_LEVELS.map(l=>(<option key={l.k} value={l.k} style={{background:"var(--bg2)"}}>{l.emoji} {l.l}</option>))}
+            </select>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px]" style={{color:"var(--muted)"}}>affinité</span>
+              <input type="range" min="0" max="100" value={p.affinity} onChange={e=>upd(p.id,{affinity:parseInt(e.target.value)})} className="flex-1"/>
+              <span className="text-[10px]" style={{color:lvl.color}}>{p.affinity}%</span>
+            </div>
+            <button onClick={()=>speak(p)} className="w-full py-1.5 rounded-full text-[11px]" style={{background:"var(--surface)", border:`1px solid ${lvl.color}`, color:lvl.color}}>💬 qu'est-ce qu'il/elle me dirait ?</button>
+          </div>
+        );})}
+        {people.length===0 && <p className="col-span-2 text-center italic py-4 text-sm" style={{color:"var(--muted)"}}>Ajoute les personnages de ta DR ✦</p>}
+      </div>
+      {line && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-8" style={{background:"rgba(0,0,0,0.7)"}} onClick={()=>setLine(null)}>
+          <div className="max-w-sm text-center rounded-3xl p-6" style={{background:"var(--surface)", border:"1px solid var(--accent)"}} onClick={e=>e.stopPropagation()}>
+            <p className="text-xs uppercase tracking-widest mb-2" style={{color:"var(--muted)"}}>{line.name}</p>
+            <p className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>{line.text}</p>
+            <button onClick={()=>setLine(null)} className="mt-4 text-xs underline" style={{color:"var(--muted)"}}>fermer</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* 🗺️ Carte interactive */
+function DRMap({ dr, onUpdate }) {
+  const places = dr.places || [];
+  const [open, setOpen] = useState(null);
+  const add = ()=>onUpdate({places:[...places,{id:uid(),name:"Nouveau lieu",emoji:"📍",sound:"",moodboard:"",desc:""}]});
+  const upd = (id,patch)=>onUpdate({places:places.map(p=>p.id===id?{...p,...patch}:p)});
+  const cur = places.find(p=>p.id===open);
+  return (
+    <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🗺️ Lieux de ma DR</h3>
+        <button onClick={add} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> ajouter</button>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {places.map(p=>(
+          <button key={p.id} onClick={()=>setOpen(open===p.id?null:p.id)} className="px-3 py-2 rounded-full text-sm transition" style={{background:open===p.id?"var(--primary)":"var(--surface2)", color:open===p.id?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{p.emoji} {p.name}</button>
+        ))}
+        {places.length===0 && <p className="text-sm italic" style={{color:"var(--muted)"}}>Le Grand Chêne, Ma chambre, Le café... ✦</p>}
+      </div>
+      {cur && (
+        <div className="rounded-2xl overflow-hidden animate-fade-up" style={{border:"1px solid var(--accent)"}}>
+          {cur.moodboard && <img src={cur.moodboard} alt="" className="w-full max-h-48 object-cover"/>}
+          <div className="p-4" style={{background:"var(--surface2)"}}>
+            <div className="flex gap-2 mb-2">
+              <input value={cur.emoji} onChange={e=>upd(cur.id,{emoji:e.target.value})} className="w-10 text-center bg-transparent outline-none text-lg"/>
+              <input value={cur.name} onChange={e=>upd(cur.id,{name:e.target.value})} className="flex-1 bg-transparent outline-none text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}/>
+              <button onClick={()=>{ onUpdate({places:places.filter(x=>x.id!==cur.id)}); setOpen(null); }} style={{color:"var(--muted)"}}><Trash2 size={14}/></button>
+            </div>
+            <textarea value={cur.desc} onChange={e=>upd(cur.id,{desc:e.target.value})} rows={2} placeholder="ambiance, description du lieu..." className="w-full bg-transparent outline-none text-sm mb-2" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
+            <input value={cur.moodboard} onChange={e=>upd(cur.id,{moodboard:e.target.value})} placeholder="URL image d'ambiance" className="w-full bg-transparent outline-none text-xs mb-2" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
+            <input value={cur.sound} onChange={e=>upd(cur.id,{sound:e.target.value})} placeholder="lien son d'ambiance (Spotify, YouTube...)" className="w-full bg-transparent outline-none text-xs mb-2" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--accent)"}}/>
+            {cur.sound?.includes("spotify") && <iframe title="amb" src={cur.sound.replace("/track/","/embed/track/").replace("/playlist/","/embed/playlist/")} width="100%" height="80" frameBorder="0" allow="encrypted-media" className="rounded-lg"/>}
+            {cur.sound && !cur.sound.includes("spotify") && <a href={cur.sound} target="_blank" rel="noreferrer" className="text-xs underline" style={{color:"var(--accent)"}}>▶ ouvrir l'ambiance sonore</a>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* 📜 Gazette de la DR */
+const GAZETTE_TEMPLATES = [
+  (n)=>`📰 La Gazette de ${n} : des lumières étranges ont été aperçues près du lac ce matin. La rumeur enfle...`,
+  (n)=>`📰 ${n} aujourd'hui : on murmure qu'un événement se prépare. Tout le monde est sur le qui-vive.`,
+  (n)=>`📰 Nouvelle du jour à ${n} : quelqu'un te cherchait. On dit que c'était important.`,
+  (n)=>`📰 ${n} : le temps est parfait aujourd'hui. Une journée idéale pour que quelque chose de magique arrive.`,
+  (n)=>`📰 Rumeur à ${n} : ton nom a été prononcé dans une conversation importante hier soir...`,
+  (n)=>`📰 ${n} : les habitants préparent une célébration. On espère te voir y participer.`,
+  (n)=>`📰 Journal de ${n} : un visage familier pense à toi en ce moment même. Le savais-tu ?`,
+];
+function DRGazette({ dr }) {
+  const name = dr.name || "ta DR";
+  const txt = pickByDate(GAZETTE_TEMPLATES, "gazette"+dr.id)(name);
+  return (
+    <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+      <h3 className="text-2xl mb-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📜 La Gazette du jour</h3>
+      <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Des nouvelles de ta DR, même quand tu n'y es pas ✦</p>
+      <div className="rounded-xl p-4" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <p className="text-sm leading-relaxed" style={{color:"var(--text)", fontFamily:'"Cormorant Garamond",serif', fontSize:"16px"}}>{txt}</p>
+      </div>
+      <p className="text-[10px] italic mt-2 text-center" style={{color:"var(--muted)"}}>nouvelle gazette chaque jour</p>
     </div>
   );
 }
@@ -2441,6 +3073,1258 @@ function AppLock({ pin, setPin, onUnlock }) {
   );
 }
 
+/* ============================================================
+   ✦ CALENDRIER MENSTRUEL (Yasmine)
+   ============================================================ */
+function CycleTracker({ data, setData }) {
+  // data = { lastPeriod:"YYYY-MM-DD", cycleLength:28, periodLength:5, logs:[{date,flow,mood,notes}] }
+  const d = data || { lastPeriod:"", cycleLength:28, periodLength:5, logs:[] };
+  const set = (patch) => setData({ ...d, ...patch });
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const calc = () => {
+    if (!d.lastPeriod) return null;
+    const last = new Date(d.lastPeriod); last.setHours(0,0,0,0);
+    const cl = d.cycleLength || 28;
+    const diff = Math.floor((today - last) / 86400000);
+    const dayInCycle = ((diff % cl) + cl) % cl + 1;
+    const next = new Date(last); next.setDate(last.getDate() + cl);
+    while (next < today) next.setDate(next.getDate() + cl);
+    const daysToNext = Math.ceil((next - today) / 86400000);
+    const ovulation = new Date(next); ovulation.setDate(next.getDate() - 14);
+    let phase = "Folliculaire", emoji = "🌱", color = "#9ac8a8";
+    if (dayInCycle <= (d.periodLength||5)) { phase = "Règles"; emoji = "🩸"; color = "#c85a6a"; }
+    else if (dayInCycle >= cl-16 && dayInCycle <= cl-12) { phase = "Ovulation"; emoji = "🌕"; color = "#e8a85a"; }
+    else if (dayInCycle > cl-12) { phase = "Lutéale"; emoji = "🌙"; color = "#a875d4"; }
+    return { dayInCycle, daysToNext, next, ovulation, phase, emoji, color };
+  };
+  const info = calc();
+
+  const flows = [{e:"💧",l:"léger"},{e:"💧💧",l:"moyen"},{e:"💧💧💧",l:"abondant"}];
+  const logToday = (flow) => {
+    const ds = today.toISOString().slice(0,10);
+    const logs = (d.logs||[]).filter(l=>l.date!==ds);
+    set({ logs:[{date:ds, flow}, ...logs] });
+  };
+
+  return (
+    <div className="animate-fade-up max-w-3xl mx-auto">
+      <div className="rounded-3xl p-6 mb-6 text-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🩸 Mon cycle</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Suis ton flux, tes phases et ta lune intérieure</p>
+      </div>
+
+      {/* Réglages */}
+      <div className="rounded-2xl p-5 mb-6 grid sm:grid-cols-3 gap-4" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest block mb-1" style={{color:"var(--muted)"}}>Début dernières règles</label>
+          <input type="date" value={d.lastPeriod} onChange={e=>set({lastPeriod:e.target.value})}
+            className="w-full text-sm px-2 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest block mb-1" style={{color:"var(--muted)"}}>Durée du cycle (jours)</label>
+          <input type="number" value={d.cycleLength} onChange={e=>set({cycleLength:parseInt(e.target.value)||28})}
+            className="w-full text-sm px-2 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest block mb-1" style={{color:"var(--muted)"}}>Durée des règles (jours)</label>
+          <input type="number" value={d.periodLength} onChange={e=>set({periodLength:parseInt(e.target.value)||5})}
+            className="w-full text-sm px-2 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        </div>
+      </div>
+
+      {info ? (<>
+        <div className="rounded-3xl p-6 mb-6 text-center" style={{background:`linear-gradient(160deg, ${info.color}33, var(--surface))`, border:`1px solid ${info.color}66`}}>
+          <div className="text-5xl mb-2">{info.emoji}</div>
+          <p className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:info.color}}>Phase {info.phase}</p>
+          <p className="text-sm" style={{color:"var(--text)"}}>Jour <b>{info.dayInCycle}</b> de ton cycle</p>
+          <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
+            <div className="rounded-xl p-3" style={{background:"var(--surface2)"}}>
+              <p className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Prochaines règles</p>
+              <p style={{color:"var(--text)"}}>dans {info.daysToNext} jours</p>
+              <p className="text-xs" style={{color:"var(--muted)"}}>{info.next.toLocaleDateString("fr-FR")}</p>
+            </div>
+            <div className="rounded-xl p-3" style={{background:"var(--surface2)"}}>
+              <p className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Ovulation estimée</p>
+              <p style={{color:"var(--text)"}}>{info.ovulation.toLocaleDateString("fr-FR")}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl p-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+          <p className="text-sm mb-3" style={{color:"var(--text)"}}>Noter mon flux aujourd'hui :</p>
+          <div className="flex gap-2 flex-wrap">{flows.map(f=>(
+            <button key={f.l} onClick={()=>logToday(f.l)} className="px-4 py-2 rounded-full text-sm transition hover:scale-105" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>{f.e} {f.l}</button>
+          ))}</div>
+          {(d.logs||[]).length>0 && (
+            <div className="mt-4">
+              <p className="text-[10px] uppercase tracking-widest mb-2" style={{color:"var(--muted)"}}>Historique récent</p>
+              <div className="flex flex-wrap gap-2">{d.logs.slice(0,14).map((l,i)=>(
+                <span key={i} className="text-xs px-2 py-1 rounded-full" style={{background:"var(--surface2)", color:"var(--muted)"}}>{new Date(l.date).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} · {l.flow}</span>
+              ))}</div>
+            </div>
+          )}
+        </div>
+      </>) : (
+        <p className="text-center italic py-8" style={{color:"var(--muted)"}}>Renseigne la date de tes dernières règles pour voir tes phases ✦</p>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ ROUE DE L'ANNÉE — 8 sabbats (Yasmeen)
+   ============================================================ */
+const SABBATS = [
+  { name:"Samhain", date:"31 oct", emoji:"🎃", theme:"Nouvel an des sorcières, honorer les ancêtres, voile le plus fin", color:"#c85a3a", deg:0 },
+  { name:"Yule", date:"21 déc", emoji:"🕯️", theme:"Solstice d'hiver, renaissance du soleil, introspection", color:"#5a7ac8", deg:45 },
+  { name:"Imbolc", date:"1 fév", emoji:"🕯️", theme:"Premiers signes du printemps, purification, Brigid", color:"#e8d49a", deg:90 },
+  { name:"Ostara", date:"21 mars", emoji:"🌸", theme:"Équinoxe de printemps, équilibre, nouveaux départs", color:"#9ac88a", deg:135 },
+  { name:"Beltane", date:"1 mai", emoji:"🔥", theme:"Fertilité, passion, feu de joie, abondance", color:"#e85a8a", deg:180 },
+  { name:"Litha", date:"21 juin", emoji:"☀️", theme:"Solstice d'été, apogée du soleil, force et lumière", color:"#e8a83a", deg:225 },
+  { name:"Lughnasadh", date:"1 août", emoji:"🌾", theme:"Premières récoltes, gratitude, partage", color:"#c89a4a", deg:270 },
+  { name:"Mabon", date:"21 sept", emoji:"🍂", theme:"Équinoxe d'automne, bilan, remerciements, équilibre", color:"#a85a3a", deg:315 },
+];
+function WheelOfYear() {
+  // trouver le prochain sabbat
+  const now = new Date();
+  const year = now.getFullYear();
+  const dates = [
+    {i:0, d:new Date(year,9,31)}, {i:1, d:new Date(year,11,21)}, {i:2, d:new Date(year,1,1)},
+    {i:3, d:new Date(year,2,21)}, {i:4, d:new Date(year,4,1)}, {i:5, d:new Date(year,5,21)},
+    {i:6, d:new Date(year,7,1)}, {i:7, d:new Date(year,8,21)},
+  ];
+  let next = null, minDiff = Infinity;
+  dates.forEach(({i,d})=>{ let dd=d; if(dd<now){dd=new Date(d); dd.setFullYear(year+1);} const diff=dd-now; if(diff<minDiff){minDiff=diff; next={i, days:Math.ceil(diff/86400000)};} });
+  const [sel, setSel] = useState(next?.i ?? 0);
+  const s = SABBATS[sel];
+
+  return (
+    <div className="animate-fade-up max-w-3xl mx-auto">
+      <div className="text-center mb-6">
+        <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>☀️ La Roue de l'Année ✦</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Les 8 sabbats qui rythment l'année magique</p>
+        {next && <p className="text-sm mt-2" style={{color:"var(--text)"}}>Prochain sabbat : <b style={{color:SABBATS[next.i].color}}>{SABBATS[next.i].name}</b> dans {next.days} jours {SABBATS[next.i].emoji}</p>}
+      </div>
+
+      {/* roue */}
+      <div className="relative mx-auto mb-6" style={{width:"min(320px,80vw)", aspectRatio:"1"}}>
+        <div className="absolute inset-0 rounded-full" style={{background:"radial-gradient(circle, var(--surface2), var(--surface))", border:"2px solid var(--border)"}}/>
+        {SABBATS.map((sb,i)=>{
+          const angle = (sb.deg-90) * Math.PI/180;
+          const r = 42;
+          const x = 50 + r*Math.cos(angle);
+          const y = 50 + r*Math.sin(angle);
+          return (
+            <button key={sb.name} onClick={()=>setSel(i)}
+              className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center transition hover:scale-110"
+              style={{ left:`${x}%`, top:`${y}%`, width:sel===i?"54px":"44px", height:sel===i?"54px":"44px",
+                background:sel===i?sb.color:"var(--surface)", border:`2px solid ${sb.color}`, fontSize:sel===i?"24px":"20px",
+                boxShadow:sel===i?`0 0 20px ${sb.color}`:"none", zIndex:sel===i?5:1 }}>
+              {sb.emoji}
+            </button>
+          );
+        })}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl">🌙</div>
+      </div>
+
+      {/* détail sabbat */}
+      <div className="rounded-2xl p-6 text-center" style={{background:`linear-gradient(160deg, ${s.color}22, var(--surface))`, border:`1px solid ${s.color}66`}}>
+        <div className="text-5xl mb-2">{s.emoji}</div>
+        <h4 className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:s.color}}>{s.name}</h4>
+        <p className="text-sm mb-2" style={{color:"var(--muted)"}}>{s.date}</p>
+        <p className="text-sm" style={{color:"var(--text)"}}>{s.theme}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ PENDULE VIRTUEL — divination flash (Yasmeen)
+   ============================================================ */
+function Pendulum() {
+  const [question, setQuestion] = useState("");
+  const [swinging, setSwinging] = useState(false);
+  const [answer, setAnswer] = useState(null);
+  const holdRef = useRef(null);
+
+  const start = () => {
+    if (swinging) return;
+    setAnswer(null); setSwinging(true);
+    const dur = 2500 + Math.random()*2000;
+    holdRef.current = setTimeout(()=>{
+      const r = Math.random();
+      const res = r<0.42 ? {t:"Oui", dir:"clockwise", emoji:"✓", color:"#7ac8a8"}
+        : r<0.84 ? {t:"Non", dir:"counter", emoji:"✕", color:"#c87a8a"}
+        : {t:"Le voile est flou... attends", dir:"still", emoji:"~", color:"#a89ad4"};
+      setAnswer(res); setSwinging(false);
+    }, dur);
+  };
+  useEffect(()=>()=>clearTimeout(holdRef.current), []);
+
+  return (
+    <div className="animate-fade-up max-w-lg mx-auto text-center">
+      <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🔮 Le Pendule</h3>
+      <p className="text-xs italic mb-5" style={{color:"var(--muted)"}}>Pose ta question, ferme les yeux, laisse l'énergie répondre</p>
+
+      <input value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Ta question..."
+        className="w-full px-4 py-3 rounded-2xl bg-transparent outline-none text-center mb-6" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+
+      {/* pendule animé */}
+      <div className="relative mx-auto mb-6" style={{width:"120px", height:"220px"}}>
+        <div className="absolute left-1/2 top-0 origin-top" style={{
+          transformOrigin:"top center",
+          animation: swinging ? "pendSwing 1.1s ease-in-out infinite" : answer?.dir==="clockwise" ? "pendCW 1.4s linear infinite" : answer?.dir==="counter" ? "pendCCW 1.4s linear infinite" : "none",
+          transform:"translateX(-50%)"
+        }}>
+          <div style={{width:"2px", height:"150px", background:"var(--border)", margin:"0 auto"}}/>
+          <div style={{
+            width:"34px", height:"46px", margin:"0 auto",
+            background:`linear-gradient(160deg, ${answer?.color||"var(--accent)"}, var(--primary))`,
+            clipPath:"polygon(50% 0, 100% 35%, 50% 100%, 0 35%)",
+            boxShadow:`0 0 20px ${answer?.color||"var(--accent)"}`,
+          }}/>
+        </div>
+      </div>
+
+      {answer ? (
+        <div className="rounded-2xl p-5 animate-fade-up" style={{background:`${answer.color}22`, border:`1px solid ${answer.color}66`}}>
+          <p className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:answer.color}}>{answer.emoji} {answer.t}</p>
+          {question && <p className="text-xs italic" style={{color:"var(--muted)"}}>« {question} »</p>}
+        </div>
+      ) : (
+        <button onClick={start} disabled={swinging}
+          className="px-6 py-3 rounded-2xl text-sm transition hover:scale-105 disabled:opacity-50"
+          style={{background:"var(--primary)", color:"var(--bg)"}}>
+          {swinging ? "le pendule oscille..." : "✦ Consulter le pendule"}
+        </button>
+      )}
+      {answer && <button onClick={()=>{setAnswer(null); setQuestion("");}} className="block mx-auto mt-4 text-xs underline" style={{color:"var(--muted)"}}>nouvelle question</button>}
+
+      <style>{`
+        @keyframes pendSwing{0%,100%{transform:translateX(-50%) rotate(-22deg)}50%{transform:translateX(-50%) rotate(22deg)}}
+        @keyframes pendCW{0%{transform:translateX(-50%) rotate(0)}100%{transform:translateX(-50%) rotate(360deg)}}
+        @keyframes pendCCW{0%{transform:translateX(-50%) rotate(0)}100%{transform:translateX(-50%) rotate(-360deg)}}
+      `}</style>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ REALITY ANCHOR — mini-jeu d'ancrage 30s vers la DR
+   ============================================================ */
+function RealityAnchor({ drs }) {
+  const favDR = (drs||[]).find(d=>d.favorite) || (drs||[])[0] || null;
+  const [dr, setDr] = useState(favDR);
+  const [phase, setPhase] = useState("idle"); // idle | charging | done
+  const [charge, setCharge] = useState(0);
+  const [stepIdx, setStepIdx] = useState(0);
+  const raf = useRef(null);
+
+  // 5 ancrages générés depuis la DR
+  const anchors = useMemo(()=>{
+    const name = dr?.name || "ta réalité désirée";
+    const tag = dr?.tag || "";
+    const base = [
+      `Respire l'air de ${name} 🌬️`,
+      `Sens le sol sous tes pieds là-bas`,
+      `Écoute les sons autour de toi dans ${name}`,
+      `Ressens la chaleur / la lumière de cet endroit`,
+      tag ? `Rappelle-toi pourquoi tu aimes ${tag}` : `Visualise un visage aimé de ta DR`,
+    ];
+    return base;
+  }, [dr]);
+
+  const startHold = () => {
+    if (phase==="done") return;
+    setPhase("charging");
+    const tick = () => {
+      setCharge(c=>{
+        const nc = Math.min(100, c + 0.8);
+        setStepIdx(Math.min(4, Math.floor(nc/20)));
+        if (nc>=100){ setPhase("done"); return 100; }
+        raf.current = requestAnimationFrame(tick);
+        return nc;
+      });
+    };
+    raf.current = requestAnimationFrame(tick);
+  };
+  const stopHold = () => {
+    if (phase==="done") return;
+    cancelAnimationFrame(raf.current);
+    setPhase("idle");
+    // redescend doucement
+    const down = () => { setCharge(c=>{ if(c<=0){return 0;} const nc=Math.max(0,c-2); setStepIdx(Math.min(4,Math.floor(nc/20))); raf.current=requestAnimationFrame(down); return nc;}); };
+    raf.current = requestAnimationFrame(down);
+  };
+  useEffect(()=>()=>cancelAnimationFrame(raf.current), []);
+  const reset = () => { setCharge(0); setStepIdx(0); setPhase("idle"); };
+
+  return (
+    <div className="animate-fade-up max-w-lg mx-auto text-center">
+      <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>⚓ L'Ancre de Réalité</h3>
+      <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Reste appuyée pour charger ton intention et t'aligner sur ta DR</p>
+
+      {drs && drs.length>0 && (
+        <select value={dr?.id||""} onChange={e=>{setDr(drs.find(d=>d.id===e.target.value)); reset();}}
+          className="mb-5 px-3 py-2 rounded-full text-sm bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
+          {drs.map(d=>(<option key={d.id} value={d.id} style={{background:"var(--bg2)"}}>{d.name}</option>))}
+        </select>
+      )}
+
+      {/* cercle de charge */}
+      <div className="relative mx-auto mb-6 select-none" style={{width:"220px", height:"220px", cursor:"pointer", touchAction:"none"}}
+        onPointerDown={startHold} onPointerUp={stopHold} onPointerLeave={stopHold}>
+        <svg viewBox="0 0 220 220" style={{width:"220px", height:"220px"}}>
+          <circle cx="110" cy="110" r="96" fill="none" stroke="var(--surface2)" strokeWidth="10"/>
+          <circle cx="110" cy="110" r="96" fill="none" stroke="#e0c97a" strokeWidth="10" strokeLinecap="round"
+            strokeDasharray={2*Math.PI*96} strokeDashoffset={2*Math.PI*96*(1-charge/100)}
+            transform="rotate(-90 110 110)" style={{transition:"stroke-dashoffset .1s linear", filter: phase!=="idle"?"drop-shadow(0 0 8px #e0c97a)":"none"}}/>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          {phase==="done" ? (<>
+            <div className="text-4xl mb-1 animate-spin-slow">🌟</div>
+            <p className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"#e0c97a"}}>100%</p>
+          </>) : (<>
+            <div className="text-3xl mb-1">🌙</div>
+            <p className="text-2xl" style={{color:"var(--text)"}}>{Math.round(charge)}%</p>
+            <p className="text-[10px]" style={{color:"var(--muted)"}}>{phase==="charging"?"continue...":"appuie & garde"}</p>
+          </>)}
+        </div>
+        {phase==="done" && <div className="absolute inset-0 rounded-full pointer-events-none" style={{boxShadow:"0 0 60px 10px #e0c97a55", animation:"glowPulse 1.5s ease-in-out infinite"}}/>}
+      </div>
+
+      {/* ancrage courant */}
+      {phase!=="done" ? (
+        <div className="rounded-2xl p-4 mb-4 min-h-[64px] flex items-center justify-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+          <p className="text-sm" style={{color:"var(--text)"}}>{anchors[stepIdx]}</p>
+        </div>
+      ) : (
+        <div className="rounded-2xl p-5 animate-fade-up" style={{background:"linear-gradient(160deg,#e0c97a33,var(--surface))", border:"1px solid #e0c97a66"}}>
+          <p className="text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"#e0c97a"}}>✦ Fréquence DR alignée à 100% ✦</p>
+          <p className="text-sm mt-1" style={{color:"var(--text)"}}>Tu es prête. {dr?.name ? `${dr.name} t'attend.` : ""}</p>
+          <button onClick={reset} className="mt-3 px-4 py-2 rounded-full text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>recommencer</button>
+        </div>
+      )}
+      <style>{`@keyframes glowPulse{0%,100%{opacity:.4}50%{opacity:1}}`}</style>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ BOUTEILLE À LA MER — message scellé qui s'envole
+   ============================================================ */
+function MessageBottle({ bottles, setBottles }) {
+  const [to, setTo] = useState("");
+  const [msg, setMsg] = useState("");
+  const [flying, setFlying] = useState(false);
+
+  const send = () => {
+    if (!msg.trim()) return;
+    setFlying(true);
+    setTimeout(()=>{
+      setBottles([{ id:uid(), to:to.trim()||"l'univers", msg:msg.trim(), date:new Date().toISOString().slice(0,10) }, ...(bottles||[])]);
+      setFlying(false); setTo(""); setMsg("");
+    }, 3200);
+  };
+
+  return (
+    <div className="animate-fade-up max-w-lg mx-auto">
+      <div className="text-center mb-5">
+        <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Bouteille à la mer ✦</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Envoie ton énergie à un proche, ton moi futur, ou un habitant de ta DR</p>
+      </div>
+
+      {!flying ? (
+        <div className="rounded-2xl p-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+          <label className="text-[10px] uppercase tracking-widest block mb-1" style={{color:"var(--muted)"}}>Destinataire</label>
+          <input value={to} onChange={e=>setTo(e.target.value)} placeholder="mon moi futur, un guide, [personnage]..."
+            className="w-full px-3 py-2 mb-3 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <label className="text-[10px] uppercase tracking-widest block mb-1" style={{color:"var(--muted)"}}>Ton message</label>
+          <textarea value={msg} onChange={e=>setMsg(e.target.value)} rows={5} placeholder="Écris ce que ton cœur veut transmettre..."
+            className="w-full px-3 py-3 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", fontFamily:'"Caveat",cursive', fontSize:"18px", lineHeight:"26px"}}/>
+          <button onClick={send} disabled={!msg.trim()} className="w-full mt-3 py-3 rounded-2xl text-sm transition hover:scale-95 disabled:opacity-40" style={{background:"var(--primary)", color:"var(--bg)"}}>
+            ✦ Sceller & libérer
+          </button>
+        </div>
+      ) : (
+        <div className="relative h-64 overflow-hidden rounded-2xl" style={{background:"linear-gradient(180deg,#1a1438,#3a2a6e)"}}>
+          {Array.from({length:30}).map((_,i)=>(<span key={i} className="absolute rounded-full" style={{top:`${Math.random()*100}%`,left:`${Math.random()*100}%`,width:"2px",height:"2px",background:"#fff",opacity:0.6,animation:`twinkle ${2+Math.random()*2}s ease-in-out infinite`}}/>))}
+          <div className="absolute left-1/2 -translate-x-1/2 text-5xl" style={{bottom:"-60px", animation:"bottleRise 3.2s ease-in forwards"}}>🏮</div>
+          <p className="absolute inset-x-0 bottom-4 text-center text-sm italic" style={{color:"#d4b0e8"}}>libération dans le vortex quantique...</p>
+          <style>{`@keyframes bottleRise{0%{bottom:-60px;opacity:0;transform:translateX(-50%) scale(.6)}20%{opacity:1}100%{bottom:110%;opacity:0;transform:translateX(-50%) scale(1.1)}}`}</style>
+        </div>
+      )}
+
+      {/* archives */}
+      {(bottles||[]).length>0 && !flying && (
+        <div className="mt-6">
+          <p className="text-[10px] uppercase tracking-widest mb-2" style={{color:"var(--muted)"}}>Messages libérés</p>
+          <div className="space-y-2">{bottles.map(b=>(
+            <div key={b.id} className="rounded-xl p-3 flex items-start gap-3" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+              <span className="text-xl">🏮</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs" style={{color:"var(--accent)"}}>→ {b.to} <span style={{color:"var(--muted)"}}>· {b.date}</span></p>
+                <p className="text-sm" style={{color:"var(--text)", fontFamily:'"Caveat",cursive', fontSize:"16px"}}>{b.msg}</p>
+              </div>
+              <button onClick={()=>setBottles(bottles.filter(x=>x.id!==b.id))} style={{color:"var(--muted)"}}><X size={14}/></button>
+            </div>
+          ))}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ GRIMOIRE VIVANT — rituel du jour selon humeur + lune
+   ============================================================ */
+function LivingGrimoire({ moodLog, entries, setEntries }) {
+  const moon = moonPhase();
+  const lastMood = (moodLog||[])[0];
+
+  const ritual = useMemo(()=>{
+    const m = lastMood?.mood || "";
+    // règle selon humeur
+    let r;
+    if (/stress|énerv|triste|mélanco|fatig/i.test(m)) {
+      r = { titre:"Rituel d'apaisement", emoji:"🌿",
+        ingr:["1 bougie blanche ou lavande","sel pour purifier","encens / sauge"],
+        steps:"Allume la bougie. Respire 4 fois profondément. Visualise les tensions quitter ton corps avec la fumée. Dis : « Je relâche ce qui ne me sert plus. »" };
+    } else if (/heureu|amour|câlin|inspir|sereine|rêveuse/i.test(m)) {
+      r = { titre:"Rituel d'amplification de joie", emoji:"✨",
+        ingr:["1 bougie rose ou dorée","une fleur","quartz rose"],
+        steps:"Tiens le cristal. Souris. Liste 3 choses qui te rendent vivante. Dis : « J'attire encore plus de cette lumière. »" };
+    } else {
+      r = { titre:"Rituel d'ancrage du jour", emoji:"🕯️",
+        ingr:["1 bougie","un verre d'eau","ta respiration"],
+        steps:"Bois une gorgée d'eau en conscience. Pose une intention claire pour aujourd'hui. Dis : « Je suis alignée avec ma journée. »" };
+    }
+    // ajout selon la lune
+    const lune = moon.idx<=1 ? "Lune idéale pour PLANTER une intention nouvelle 🌑"
+      : moon.idx<=3 ? "Lune croissante : fais GRANDIR un projet 🌒"
+      : moon.idx<=4 ? "Pleine lune : MANIFESTE et charge tes cristaux 🌕"
+      : "Lune décroissante : LÂCHE et bannis le négatif 🌘";
+    return { ...r, lune };
+  }, [lastMood, moon.idx]);
+
+  const saveToGrimoire = () => {
+    setEntries([{ id:uid(), created:new Date().toISOString().slice(0,10),
+      title:ritual.titre, intention:lastMood?.mood?`humeur : ${lastMood.mood}`:"rituel du jour",
+      moon:moon.name||"", ingredients:ritual.ingr.join("\n"), steps:ritual.steps, result:"" }, ...entries]);
+  };
+
+  return (
+    <div className="rounded-2xl p-5 mb-6 animate-fade-up" style={{background:`linear-gradient(160deg, var(--surface2), var(--surface))`, border:"1px solid var(--accent)"}}>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h3 className="text-xl flex items-center gap-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>{ritual.emoji} Rituel du jour sur-mesure</h3>
+        <span className="text-[10px] px-2 py-1 rounded-full" style={{background:"var(--surface)", color:"var(--muted)"}}>{moon.name} {moon.emoji||"🌙"}</span>
+      </div>
+      <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>
+        {lastMood?.mood ? `Généré selon ton humeur (${lastMood.mood}) et la lune` : "Généré selon la phase de lune actuelle"}
+      </p>
+      <p className="text-sm font-bold mb-1" style={{color:"var(--text)"}}>{ritual.titre}</p>
+      <p className="text-xs mb-2" style={{color:"var(--accent)"}}>{ritual.lune}</p>
+      <p className="text-xs uppercase tracking-widest mt-2" style={{color:"var(--muted)"}}>Ingrédients</p>
+      <ul className="text-sm mb-2" style={{color:"var(--text)"}}>{ritual.ingr.map((x,i)=>(<li key={i}>• {x}</li>))}</ul>
+      <p className="text-xs uppercase tracking-widest" style={{color:"var(--muted)"}}>Rituel</p>
+      <p className="text-sm" style={{color:"var(--text)"}}>{ritual.steps}</p>
+      <button onClick={saveToGrimoire} className="mt-3 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ garder dans mon grimoire</button>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ COMFORT CHARACTERS — réconfort par tes persos préférés
+   ============================================================ */
+function ComfortCharacters({ items, setItems }) {
+  const [openId, setOpenId] = useState(null);
+  const [comfortMsg, setComfortMsg] = useState(null);
+  const open = items.find(i=>i.id===openId);
+
+  const addNew = () => { const it={id:uid(), name:"", show:"", img:"", traits:"", phrases:""}; setItems([it,...items]); setOpenId(it.id); };
+  const update = (id,patch)=>setItems(items.map(i=>i.id===id?{...i,...patch}:i));
+  const del = (id)=>{ if(confirm("Retirer ce personnage ?")){ setItems(items.filter(i=>i.id!==id)); setOpenId(null);} };
+
+  const comfortFrom = (c) => {
+    const custom = (c.phrases||"").split("\n").map(s=>s.trim()).filter(Boolean);
+    const generic = [
+      `Hey... c'est moi. Respire. Tu as traversé 100% de tes pires jours jusqu'ici. Tu vas traverser celui-là aussi.`,
+      `Je suis fière de toi, même quand tu doutes. Surtout quand tu doutes.`,
+      `Tu n'as pas besoin d'être parfaite pour mériter du repos. Pose tout. Je veille.`,
+      `Tu es plus forte que ce qui essaie de te briser aujourd'hui. Je le sais, je te connais.`,
+    ];
+    const pool = custom.length ? custom : generic;
+    const msg = pool[Math.floor(Math.random()*pool.length)];
+    setComfortMsg({ name:c.name||"Ton perso", img:c.img, msg });
+  };
+
+  if (comfortMsg) return (
+    <div className="animate-fade-up max-w-md mx-auto text-center">
+      <div className="rounded-3xl p-6" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+        {comfortMsg.img && <img src={comfortMsg.img} alt="" className="w-24 h-24 rounded-full object-cover mx-auto mb-3" style={{border:"2px solid var(--accent)"}}/>}
+        <p className="text-sm uppercase tracking-widest mb-3" style={{color:"var(--muted)"}}>{comfortMsg.name} te parle</p>
+        <p className="text-lg leading-relaxed" style={{fontFamily:'"Caveat",cursive', fontSize:"22px", color:"var(--text)"}}>« {comfortMsg.msg} »</p>
+      </div>
+      <button onClick={()=>setComfortMsg(null)} className="mt-4 px-4 py-2 rounded-full text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour</button>
+    </div>
+  );
+
+  if (open) return (
+    <div className="animate-fade-up max-w-lg mx-auto">
+      <div className="flex gap-2 mb-4">
+        <button onClick={()=>setOpenId(null)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour</button>
+        <button onClick={()=>del(open.id)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}><Trash2 size={12} className="inline"/></button>
+      </div>
+      <div className="rounded-2xl p-5 space-y-3" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        {open.img && <img src={open.img} alt="" className="w-28 h-28 rounded-full object-cover mx-auto" style={{border:"2px solid var(--accent)"}}/>}
+        <input value={open.name} onChange={e=>update(open.id,{name:e.target.value})} placeholder="Nom du personnage" className="w-full text-2xl text-center bg-transparent outline-none" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}/>
+        <input value={open.show} onChange={e=>update(open.id,{show:e.target.value})} placeholder="Série / film / anime" className="w-full text-sm text-center bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"6px"}}/>
+        <input value={open.img} onChange={e=>update(open.id,{img:e.target.value})} placeholder="URL image" className="w-full text-xs bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"6px"}}/>
+        <input value={open.traits} onChange={e=>update(open.id,{traits:e.target.value})} placeholder="Ce que tu aimes chez lui/elle" className="w-full text-sm bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"6px"}}/>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Phrases de réconfort (une par ligne)</label>
+          <textarea value={open.phrases} onChange={e=>update(open.id,{phrases:e.target.value})} rows={4} placeholder="Tout va bien se passer, je suis là...&#10;Tu es courageuse..." className="mt-1 w-full bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"8px", fontFamily:'"Caveat",cursive', fontSize:"17px"}}/>
+        </div>
+        <button onClick={()=>comfortFrom(open)} className="w-full py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>💌 Tester le réconfort</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="animate-fade-up">
+      <div className="text-center mb-5">
+        <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>💌 Mes Comfort Characters</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Tes personnages doudous. Un coup de mou ? Ils te parlent.</p>
+      </div>
+      <div className="flex justify-center mb-5">
+        <button onClick={addNew} className="px-4 py-2 rounded-full text-sm flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> Ajouter un perso</button>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {items.map(c=>(
+          <div key={c.id} className="rounded-2xl p-4 text-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            <button onClick={()=>setOpenId(c.id)} className="block w-full">
+              {c.img ? <img src={c.img} alt="" className="w-20 h-20 rounded-full object-cover mx-auto mb-2" style={{border:"2px solid var(--accent)"}}/> : <div className="w-20 h-20 rounded-full mx-auto mb-2 flex items-center justify-center text-3xl" style={{background:"var(--surface2)"}}>💗</div>}
+              <p className="text-sm" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)", fontSize:"18px"}}>{c.name||"Sans nom"}</p>
+              {c.show && <p className="text-[10px]" style={{color:"var(--muted)"}}>{c.show}</p>}
+            </button>
+            <button onClick={()=>comfortFrom(c)} className="mt-2 w-full py-1.5 rounded-full text-[11px]" style={{background:"var(--surface2)", color:"var(--accent)"}}>besoin de réconfort</button>
+          </div>
+        ))}
+        {items.length===0 && <p className="col-span-full text-center italic py-10" style={{color:"var(--muted)"}}>Aucun perso encore. Ajoute tes doudous ✦</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ SHIFT-DECK — choisir sa DR active (cartes swipe)
+   ============================================================ */
+function ShiftDeck({ drs, activeDR, setActiveDR }) {
+  if (!drs || drs.length===0) return (
+    <div className="rounded-2xl p-5 text-center" style={{background:"var(--surface)", border:"1px dashed var(--border)"}}>
+      <p className="text-sm italic" style={{color:"var(--muted)"}}>🃏 Crée des DR dans Yasmeen → Shifting pour activer ton Shift-Deck ici.</p>
+    </div>
+  );
+  return (
+    <div className="rounded-2xl p-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xl flex items-center gap-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🃏 Shift-Deck</h3>
+        {activeDR && <span className="text-[10px] px-2 py-1 rounded-full" style={{background:"var(--primary)", color:"var(--bg)"}}>active : {drs.find(d=>d.id===activeDR)?.name}</span>}
+      </div>
+      <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Choisis ta réalité désirée du moment. Touche une carte pour l'activer.</p>
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+        {drs.map(d=>{
+          const on = activeDR===d.id;
+          return (
+            <button key={d.id} onClick={()=>setActiveDR(on?null:d.id)}
+              className="flex-shrink-0 rounded-2xl overflow-hidden transition" style={{width:"130px", border:on?"2px solid var(--accent)":"1px solid var(--border)", boxShadow:on?"0 0 18px rgba(var(--glow),0.4)":"none", transform:on?"scale(1.03)":"none"}}>
+              <div style={{height:"90px", background:d.cover?`url(${d.cover}) center/cover`:"linear-gradient(160deg,var(--surface2),var(--primary))"}}/>
+              <div className="p-2" style={{background:"var(--surface)"}}>
+                <p className="text-sm leading-tight" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}>{d.name}</p>
+                {on && <p className="text-[9px] mt-1" style={{color:"var(--accent)"}}>✦ alignée</p>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {activeDR && <p className="text-xs italic mt-3" style={{color:"var(--accent)"}}>✦ Tu vibres avec « {drs.find(d=>d.id===activeDR)?.name} ». Que cette énergie t'accompagne aujourd'hui.</p>}
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ MOODBOARDS DE TENUES par thème (Yasmine)
+   ============================================================ */
+function OutfitBoards({ boards, setBoards }) {
+  const [openId, setOpenId] = useState(null);
+  const open = boards.find(b=>b.id===openId);
+
+  const addBoard = () => { const b={id:uid(), name:"Nouveau thème", vibe:"", items:[]}; setBoards([b,...boards]); setOpenId(b.id); };
+  const update = (id,patch)=>setBoards(boards.map(b=>b.id===id?{...b,...patch}:b));
+  const del = (id)=>{ if(confirm("Supprimer ce moodboard ?")){ setBoards(boards.filter(b=>b.id!==id)); setOpenId(null);} };
+  const addItem = (b)=>update(b.id,{items:[...b.items,{id:uid(),img:"",label:""}]});
+  const updItem = (b,iid,patch)=>update(b.id,{items:b.items.map(it=>it.id===iid?{...it,...patch}:it)});
+  const delItem = (b,iid)=>update(b.id,{items:b.items.filter(it=>it.id!==iid)});
+
+  if (open) return (
+    <div className="animate-fade-up">
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button onClick={()=>setOpenId(null)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour</button>
+        <button onClick={()=>del(open.id)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}><Trash2 size={12} className="inline"/></button>
+        <button onClick={()=>addItem(open)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12} className="inline"/> ajouter une pièce</button>
+      </div>
+      <input value={open.name} onChange={e=>update(open.id,{name:e.target.value})} className="text-3xl bg-transparent outline-none mb-1 w-full" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}/>
+      <input value={open.vibe} onChange={e=>update(open.id,{vibe:e.target.value})} placeholder="la vibe / occasion..." className="text-sm bg-transparent outline-none mb-4 w-full italic" style={{color:"var(--muted)"}}/>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {open.items.map(it=>(
+          <div key={it.id} className="group relative rounded-2xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
+            {it.img ? <img src={it.img} alt="" className="w-full object-cover" style={{aspectRatio:"3/4"}}/> : <div className="w-full flex items-center justify-center text-3xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>👗</div>}
+            <div className="p-2" style={{background:"var(--surface)"}}>
+              <input value={it.img} onChange={e=>updItem(open,it.id,{img:e.target.value})} placeholder="URL image" className="w-full text-[10px] bg-transparent outline-none mb-1" style={{color:"var(--muted)", borderBottom:"1px solid var(--border)"}}/>
+              <input value={it.label} onChange={e=>updItem(open,it.id,{label:e.target.value})} placeholder="pièce / marque" className="w-full text-xs bg-transparent outline-none" style={{color:"var(--text)"}}/>
+            </div>
+            <button onClick={()=>delItem(open,it.id)} className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={12}/></button>
+          </div>
+        ))}
+        {open.items.length===0 && <p className="col-span-full text-center italic py-8" style={{color:"var(--muted)"}}>Ajoute tes pièces avec leurs images ✦</p>}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="animate-fade-up">
+      <div className="text-center mb-5">
+        <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>👗 Mes moodboards tenues</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Coquette, Dark Academia, Y2K... planifie ton glow-up</p>
+      </div>
+      <div className="flex justify-center mb-5"><button onClick={addBoard} className="px-4 py-2 rounded-full text-sm flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> Nouveau thème</button></div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {boards.map(b=>(
+          <button key={b.id} onClick={()=>setOpenId(b.id)} className="text-left rounded-2xl overflow-hidden transition hover:scale-[1.02]" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            <div className="grid grid-cols-2 gap-0.5" style={{height:"140px"}}>
+              {(b.items.slice(0,4)).map(it=>(<div key={it.id} style={{background:it.img?`url(${it.img}) center/cover`:"var(--surface2)"}}/>))}
+              {b.items.length===0 && <div className="col-span-2 flex items-center justify-center text-4xl" style={{background:"var(--surface2)"}}>👗</div>}
+            </div>
+            <div className="p-3">
+              <p className="text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}>{b.name}</p>
+              {b.vibe && <p className="text-[10px] italic" style={{color:"var(--muted)"}}>{b.vibe}</p>}
+              <p className="text-[10px] mt-1" style={{color:"var(--muted)"}}>{b.items.length} pièces</p>
+            </div>
+          </button>
+        ))}
+        {boards.length===0 && <p className="col-span-full text-center italic py-10" style={{color:"var(--muted)"}}>Aucun moodboard. Crée ton premier thème ✦</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ OST DE TA VIE 2026 — une chanson par mois
+   ============================================================ */
+const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+function LifeOST({ ost, setOst }) {
+  const year = 2026;
+  const data = ost || {};
+  const setMonth = (m, patch) => setOst({ ...data, [m]:{ ...(data[m]||{}), ...patch } });
+  const filled = MONTHS_FR.filter((_,i)=>data[i]?.title).length;
+
+  return (
+    <div className="animate-fade-up max-w-2xl mx-auto">
+      <div className="text-center mb-5">
+        <h3 className="text-3xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎵 L'OST de ma vie · {year}</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Une chanson par mois. À la fin de l'année, c'est la bande-son de ton année.</p>
+        <p className="text-xs mt-1" style={{color:"var(--accent)"}}>{filled}/12 mois remplis</p>
+      </div>
+      <div className="space-y-2">
+        {MONTHS_FR.map((mn,i)=>{
+          const cur = new Date().getMonth(), isCur = i===cur && year===new Date().getFullYear();
+          const m = data[i]||{};
+          return (
+            <div key={i} className="rounded-2xl p-3" style={{background:isCur?"linear-gradient(160deg,var(--surface2),var(--surface))":"var(--surface)", border:isCur?"1px solid var(--accent)":"1px solid var(--border)"}}>
+              <div className="flex items-center gap-3">
+                <span className="text-xs w-16 flex-shrink-0" style={{color:isCur?"var(--accent)":"var(--muted)", fontFamily:'"Dancing Script",cursive', fontSize:"15px"}}>{mn}</span>
+                <div className="flex-1 min-w-0">
+                  <input value={m.title||""} onChange={e=>setMonth(i,{title:e.target.value})} placeholder="titre — artiste" className="w-full text-sm bg-transparent outline-none" style={{color:"var(--text)"}}/>
+                  {m.spotify && m.spotify.includes("spotify") && <iframe title={"sp"+i} src={m.spotify.replace("/track/","/embed/track/")} width="100%" height="80" frameBorder="0" allow="encrypted-media" className="rounded-lg mt-2"/>}
+                  <input value={m.spotify||""} onChange={e=>setMonth(i,{spotify:e.target.value})} placeholder="lien Spotify (optionnel)" className="w-full text-[10px] bg-transparent outline-none mt-1" style={{color:"var(--muted)"}}/>
+                </div>
+                <span className="text-lg">{m.title?"🎶":"🎵"}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {filled===12 && <div className="mt-5 rounded-2xl p-5 text-center" style={{background:"linear-gradient(160deg,var(--surface2),var(--surface))", border:"1px solid var(--accent)"}}><p className="text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Ton année 2026 a sa bande-son complète ✦</p><p className="text-xs italic" style={{color:"var(--muted)"}}>12 chansons qui racontent ton année</p></div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ SPIRALE LUNAIRE DU MOIS (Yasmeen)
+   ============================================================ */
+function MoonSpiral() {
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const todayD = now.getDate();
+  // points sur une spirale
+  const pts = [];
+  for (let day=1; day<=daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    const mp = moonPhase(d);
+    const t = (day-1)/(daysInMonth-1);
+    const angle = t * Math.PI * 4; // 2 tours
+    const r = 12 + t * 78;
+    const cx = 110 + r*Math.cos(angle);
+    const cy = 110 + r*Math.sin(angle);
+    pts.push({ day, cx, cy, illum:mp.illum, idx:mp.idx, isNew:mp.idx===0, isFull:mp.idx===4, isToday:day===todayD });
+  }
+  return (
+    <div className="rounded-2xl p-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <h3 className="text-xl mb-1 flex items-center gap-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🌀 Spirale lunaire</h3>
+      <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Le cycle de la lune ce mois-ci · {MONTHS_FR[month]} {year}</p>
+      <div className="flex justify-center">
+        <svg viewBox="0 0 220 220" style={{width:"min(280px,80vw)", height:"min(280px,80vw)"}}>
+          {pts.map((p,i)=> i>0 && <line key={"l"+i} x1={pts[i-1].cx} y1={pts[i-1].cy} x2={p.cx} y2={p.cy} stroke="var(--border)" strokeWidth="1" opacity="0.4"/>)}
+          {pts.map(p=>(
+            <g key={p.day}>
+              <circle cx={p.cx} cy={p.cy} r={p.isFull?6:p.isNew?5:3.2}
+                fill={p.isFull?"#fff":p.isNew?"#2a2a3a":`rgba(230,220,255,${0.25+p.illum/150})`}
+                stroke={p.isToday?"var(--accent)":p.isFull?"#e0c97a":"none"} strokeWidth={p.isToday?2.5:p.isFull?1.5:0}
+                style={{filter:(p.isFull||p.isToday)?"drop-shadow(0 0 4px var(--accent))":"none"}}/>
+              {p.isFull && <text x={p.cx} y={p.cy-9} textAnchor="middle" fontSize="7" fill="var(--accent)">🌕</text>}
+              {p.isNew && <text x={p.cx} y={p.cy-8} textAnchor="middle" fontSize="7" fill="var(--muted)">🌑</text>}
+            </g>
+          ))}
+          <text x="110" y="113" textAnchor="middle" fontSize="20">🌙</text>
+        </svg>
+      </div>
+      <div className="flex justify-center gap-4 text-[10px] mt-2" style={{color:"var(--muted)"}}>
+        <span>🌑 Nouvelle Lune</span><span>🌕 Pleine Lune</span><span style={{color:"var(--accent)"}}>○ aujourd'hui</span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ BOÎTE À MANIFESTATION (Yasmeen)
+   ============================================================ */
+function ManifestBox({ seeds, setSeeds }) {
+  const [text, setText] = useState("");
+  const [shaking, setShaking] = useState(false);
+  const addSeed = () => { if(!text.trim()) return; setSeeds([{id:uid(), text:text.trim(), date:new Date().toISOString().slice(0,10), grown:null}, ...seeds]); setText(""); };
+  const shake = () => { setShaking(true); setTimeout(()=>setShaking(false), 900); };
+  const markGrown = (id, val) => setSeeds(seeds.map(s=>s.id===id?{...s,grown:val}:s));
+  const remove = (id) => setSeeds(seeds.filter(s=>s.id!==id));
+  const daysSince = (d) => Math.floor((Date.now()-new Date(d))/86400000);
+
+  return (
+    <div className="rounded-2xl p-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <h3 className="text-xl mb-1 flex items-center gap-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📦 Boîte à manifestation</h3>
+      <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Glisse tes désirs dedans. Secoue pour diffuser l'énergie. Reviens voir si la graine a poussé.</p>
+
+      <div className="flex gap-2 mb-3">
+        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addSeed()} placeholder="un désir, un mot, une intention..."
+          className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        <button onClick={addSeed} className="px-3 rounded-lg" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={16}/></button>
+      </div>
+
+      <button onClick={shake} className="w-full mb-4 py-8 rounded-2xl text-center transition" style={{background:"linear-gradient(160deg, var(--surface2), var(--primary))", border:"2px solid var(--accent)", animation:shaking?"boxShake 0.4s ease-in-out 2":"none"}}>
+        <div className="text-5xl mb-1">🎁</div>
+        <p className="text-sm" style={{color:"var(--text)"}}>{shaking?"✦ énergie diffusée ✦":"touche pour secouer & diffuser"}</p>
+        <p className="text-[10px]" style={{color:"var(--muted)"}}>{seeds.length} graine{seeds.length>1?"s":""} à l'intérieur</p>
+      </button>
+
+      <div className="space-y-2">
+        {seeds.map(s=>(
+          <div key={s.id} className="rounded-xl p-3" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm" style={{color:"var(--text)"}}>🌱 {s.text}</p>
+                <p className="text-[10px]" style={{color:"var(--muted)"}}>planté il y a {daysSince(s.date)}j</p>
+              </div>
+              <button onClick={()=>remove(s.id)} style={{color:"var(--muted)"}}><X size={14}/></button>
+            </div>
+            {daysSince(s.date)>=14 && s.grown===null && (
+              <div className="mt-2 rounded-lg p-2" style={{background:"rgba(var(--glow),0.12)"}}>
+                <p className="text-xs mb-2" style={{color:"var(--accent)"}}>✦ Est-ce que cette graine a poussé dans ta réalité ?</p>
+                <div className="flex gap-2">
+                  <button onClick={()=>markGrown(s.id,true)} className="px-3 py-1 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>🌸 oui, manifesté !</button>
+                  <button onClick={()=>markGrown(s.id,false)} className="px-3 py-1 rounded-full text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>pas encore</button>
+                </div>
+              </div>
+            )}
+            {s.grown===true && <p className="text-xs mt-1" style={{color:"var(--accent)"}}>🌸 manifesté — merci l'Univers</p>}
+            {s.grown===false && <button onClick={()=>markGrown(s.id,null)} className="text-[10px] underline mt-1" style={{color:"var(--muted)"}}>revérifier plus tard</button>}
+          </div>
+        ))}
+        {seeds.length===0 && <p className="text-center italic text-xs py-4" style={{color:"var(--muted)"}}>La boîte est vide. Plante ta première intention ✦</p>}
+      </div>
+      <style>{`@keyframes boxShake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-6px) rotate(-3deg)}75%{transform:translateX(6px) rotate(3deg)}}`}</style>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ LÂCHER-PRISE — respiration + fumée (Yasmeen)
+   ============================================================ */
+function LetGo() {
+  const [text, setText] = useState("");
+  const [phase, setPhase] = useState("idle"); // idle | breathing | smoke | done
+  const release = () => {
+    if (!text.trim()) return;
+    setPhase("breathing");
+    setTimeout(()=>setPhase("smoke"), 10000);
+    setTimeout(()=>{ setPhase("done"); setText(""); }, 13000);
+  };
+  return (
+    <div className="rounded-2xl p-5 text-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+      <h3 className="text-xl mb-1 flex items-center justify-center gap-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>💨 Lâcher-prise</h3>
+      <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Tu penses trop ? Écris, respire, et confie tout à l'Univers.</p>
+
+      {phase==="idle" && (<>
+        <textarea value={text} onChange={e=>setText(e.target.value)} rows={4} placeholder="Écris ce qui t'obsède, ce qui te stresse, ta sur-manifestation..."
+          className="w-full px-3 py-3 rounded-xl bg-transparent outline-none text-sm mb-3" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        <button onClick={release} disabled={!text.trim()} className="px-5 py-2 rounded-full text-sm disabled:opacity-40" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ Lâcher prise</button>
+      </>)}
+
+      {phase==="breathing" && (
+        <div className="py-8">
+          <div className="mx-auto mb-4 rounded-full" style={{width:"80px", height:"80px", background:"radial-gradient(circle, var(--accent), var(--primary))", animation:"breathe 4s ease-in-out infinite"}}/>
+          <p className="text-sm" style={{color:"var(--text)"}}>Respire... inspire 4s... expire 4s...</p>
+          <p className="text-xs italic mt-1" style={{color:"var(--muted)"}}>laisse les pensées se déposer</p>
+        </div>
+      )}
+      {phase==="smoke" && (
+        <div className="py-10 relative overflow-hidden" style={{minHeight:"120px"}}>
+          <p className="text-sm" style={{color:"var(--muted)", animation:"smokeAway 3s ease-in forwards"}}>{text}</p>
+          {Array.from({length:12}).map((_,i)=>(<span key={i} className="absolute text-2xl" style={{left:`${20+Math.random()*60}%`, bottom:"0", opacity:0.5, animation:`smokeRise ${2+Math.random()*1.5}s ease-in forwards`, animationDelay:`${Math.random()}s`}}>💨</span>))}
+        </div>
+      )}
+      {phase==="done" && (
+        <div className="py-8 animate-fade-up">
+          <div className="text-4xl mb-2">🕊️</div>
+          <p className="text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>C'est envoyé.</p>
+          <p className="text-sm" style={{color:"var(--text)"}}>Maintenant, vis ta vie ici-bas. L'Univers s'en occupe.</p>
+          <button onClick={()=>setPhase("idle")} className="mt-4 px-4 py-2 rounded-full text-xs" style={{background:"var(--surface2)", color:"var(--text)"}}>recommencer</button>
+        </div>
+      )}
+      <style>{`@keyframes breathe{0%,100%{transform:scale(0.7);opacity:0.6}50%{transform:scale(1.2);opacity:1}}
+        @keyframes smokeAway{0%{opacity:1;filter:blur(0)}100%{opacity:0;filter:blur(8px);transform:translateY(-20px)}}
+        @keyframes smokeRise{0%{transform:translateY(0) scale(1);opacity:0.5}100%{transform:translateY(-100px) scale(2);opacity:0}}`}</style>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ ROYAUME FÉE (Fairy) — hub avec sous-sections
+   ============================================================ */
+const FAIRY_LORE_SEED = [
+  { id:"pixie", name:"Pixies", emoji:"🧚", flower:"Digitale", likes:"la danse, les blagues, le désordre joyeux", taboo:"ne jamais les remercier de façon humaine, ça les vexe", note:"Petites fées espiègles qui adorent jouer des tours bon enfant." },
+  { id:"sylph", name:"Sylphes", emoji:"🌬️", flower:"Pissenlit", likes:"le vent, l'encens, les plumes", taboo:"ne pas les enfermer ni retenir l'air", note:"Esprits de l'air, messagers entre les mondes." },
+  { id:"dryad", name:"Dryades", emoji:"🌳", flower:"Chêne / Gui", likes:"qu'on protège les arbres, le silence", taboo:"ne jamais couper un arbre vivant sans demander", note:"Nymphes des arbres, gardiennes des forêts anciennes." },
+  { id:"leprechaun", name:"Leprechauns", emoji:"🍀", flower:"Trèfle", likes:"l'or, l'artisanat, le whisky", taboo:"ne jamais les quitter des yeux ou ils disparaissent", note:"Petits artisans rusés du folklore irlandais." },
+  { id:"undine", name:"Ondines", emoji:"💧", flower:"Nénuphar", likes:"l'eau pure, les coquillages, les chants", taboo:"ne pas polluer leur eau", note:"Nymphes de l'eau, gardiennes des sources et rivières." },
+];
+const FAIRY_OFFERINGS = {
+  printemps:["Lait chaud au miel 🍯","Pétales de fleurs fraîches","Eau de rose"],
+  été:["Biscuits à la lavande","Fruits rouges","Eau de source"],
+  automne:["Noisettes & glands","Cidre doux","Petits objets en cuivre"],
+  hiver:["Lait chaud épicé","Miel & cannelle","Cristaux brillants"],
+};
+function currentSeason() {
+  const m = new Date().getMonth();
+  return m<=1||m===11 ? "hiver" : m<=4 ? "printemps" : m<=7 ? "été" : "automne";
+}
+
+const FAIRY_ORACLE = [
+  { name:"La Clochette", emoji:"🔔", msg:"Une surprise joyeuse arrive. Reste ouverte à l'inattendu." },
+  { name:"Le Chêne", emoji:"🌳", msg:"Protection et force. Tu es plus enracinée que tu ne crois." },
+  { name:"La Licorne", emoji:"🦄", msg:"Pureté et magie. Crois en l'impossible aujourd'hui." },
+  { name:"Le Papillon", emoji:"🦋", msg:"Transformation. Tu sors d'un cocon, laisse-toi déployer." },
+  { name:"La Rose", emoji:"🌹", msg:"Amour de soi. Offre-toi la douceur que tu donnes aux autres." },
+  { name:"Le Champignon", emoji:"🍄", msg:"Entre deux mondes. Fais confiance à ton intuition." },
+  { name:"La Luciole", emoji:"✨", msg:"Ta lumière intérieure guide le chemin. Ne la caches pas." },
+  { name:"Le Ruisseau", emoji:"💧", msg:"Laisse couler. Ce qui doit partir partira naturellement." },
+  { name:"Le Cerf Blanc", emoji:"🦌", msg:"Un guide veille sur toi. Suis les signes de la nature." },
+  { name:"La Lune", emoji:"🌙", msg:"Honore tes cycles. Le repos fait aussi partie de la magie." },
+];
+const FAIRY_LAWS_DEFAULT = [
+  "Toujours laisser un coin de mon jardin sauvage pour qu'elles s'y cachent.",
+  "Ne jamais jeter de déchets et remercier l'esprit de l'eau.",
+  "Cultiver ma joie de vivre, car les fées détestent l'ennui.",
+];
+
+function FairyWeather() {
+  const [w, setW] = useState(null);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const fetchWeather = () => {
+    setLoading(true); setErr("");
+    if (!navigator.geolocation) { setErr("Géolocalisation indisponible"); setLoading(false); return; }
+    navigator.geolocation.getCurrentPosition(async (pos)=>{
+      try {
+        const { latitude, longitude } = pos.coords;
+        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,cloud_cover,is_day`);
+        const j = await r.json();
+        setW(j.current);
+      } catch(e){ setErr("Impossible de récupérer la météo"); }
+      setLoading(false);
+    }, ()=>{ setErr("Localisation refusée"); setLoading(false); });
+  };
+
+  // interprétation féerique du code météo
+  const fey = (c) => {
+    if (!c) return null;
+    const code = c.weather_code;
+    const mist = [45,48].includes(code);
+    const sunRain = [51,53,80].includes(code) && c.cloud_cover<70;
+    const clearNight = code===0 && c.is_day===0;
+    if (mist) return { msg:"Brume féerique ! Météo idéale pour la danse des fées. Ouvre l'œil ! 🌫️", good:true };
+    if (sunRain) return { msg:"Pluie sous le soleil — un arc-en-ciel se forme. Les fées sortent ! 🌈", good:true };
+    if (clearNight) return { msg:"Ciel étoilé sans nuages. Nuit parfaite pour leur magie. ✨", good:true };
+    if (code===0) return { msg:"Grand soleil. Belle journée, mais les fées se cachent à midi. ☀️", good:false };
+    return { msg:"Temps calme. Pose ton intention de rencontre quand même. 🍃", good:false };
+  };
+  const f = w && fey(w);
+
+  return (
+    <div className="max-w-md mx-auto text-center">
+      {!w ? (
+        <div className="rounded-2xl p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+          <p className="text-sm italic mb-4" style={{color:"var(--muted)"}}>Synchronise ta vraie météo pour savoir si c'est un jour féerique</p>
+          <button onClick={fetchWeather} disabled={loading} className="px-5 py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"...":"🌦️ Voir la météo féerique"}</button>
+          {err && <p className="text-xs mt-3" style={{color:"#c89a9a"}}>{err}</p>}
+        </div>
+      ) : (
+        <div className="rounded-3xl p-6 animate-fade-up" style={{background:f?.good?"linear-gradient(160deg,#ffd0ee33,var(--surface))":"var(--surface)", border:`1px solid ${f?.good?"var(--accent)":"var(--border)"}`}}>
+          <p className="text-3xl mb-1">{Math.round(w.temperature_2m)}°</p>
+          <p className="text-sm" style={{color:"var(--text)"}}>{f?.msg}</p>
+          {f?.good && <p className="text-xs italic mt-3" style={{color:"var(--accent)"}}>✦ Spécifie ton intention de rencontre aujourd'hui ✦</p>}
+          <button onClick={fetchWeather} className="mt-4 text-xs underline" style={{color:"var(--muted)"}}>rafraîchir</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FairyRealm({ data, setData }) {
+  const d = data || {};
+  const set = (patch) => setData({ ...d, ...patch });
+  const [tab, setTab] = useState("profile");
+  const tabs = [
+    {k:"profile",l:"🧚 Profil"},{k:"lore",l:"📖 Lore"},{k:"garden",l:"🌱 Jardin"},
+    {k:"feast",l:"🍯 Offrandes"},{k:"glamour",l:"👗 Glamour"},
+    {k:"weather",l:"🌦️ Météo fée"},{k:"oracle",l:"🃏 Oracle"},
+    {k:"avalon",l:"🌙 Rêves Avalon"},{k:"laws",l:"📜 Lois"},
+  ];
+
+  // --- Profile ---
+  const prof = d.profile || {};
+  const setProf = (patch)=>set({profile:{...prof,...patch}});
+
+  // --- Garden ---
+  const garden = d.garden || { seeds:0, plants:[] };
+  const earnSeed = ()=>set({garden:{...garden, seeds:(garden.seeds||0)+1}});
+  const plantSeed = (type)=>{ if((garden.seeds||0)<1) return; set({garden:{seeds:garden.seeds-1, plants:[...(garden.plants||[]), {id:uid(), type, x:8+Math.random()*84, y:30+Math.random()*55}]}}); };
+
+  // --- Glamour ---
+  const glam = d.glamour || [];
+  const addGlam = ()=>set({glamour:[{id:uid(),img:"",label:""},...glam]});
+  const updGlam = (id,patch)=>set({glamour:glam.map(g=>g.id===id?{...g,...patch}:g)});
+  const delGlam = (id)=>set({glamour:glam.filter(g=>g.id!==id)});
+
+  const season = currentSeason();
+
+  // --- Oracle ---
+  const [card, setCard] = useState(null);
+  const drawCard = ()=> setCard(pickByDate(FAIRY_ORACLE, "fairyoracle"));
+  // --- Laws ---
+  const laws = d.laws || FAIRY_LAWS_DEFAULT;
+  const setLaws = (l)=>set({laws:l});
+  // --- Avalon dreams ---
+  const avalon = d.avalon || [];
+  const [avText, setAvText] = useState("");
+  const addAvalon = ()=>{ if(!avText.trim()) return; set({avalon:[{id:uid(), text:avText.trim(), date:new Date().toISOString().slice(0,10), visited:false}, ...avalon]}); setAvText(""); };
+  // --- Poussière de fée ---
+  const [dust, setDust] = useState(false);
+
+  return (
+    <div className="animate-fade-up">
+      <div className="text-center mb-5">
+        <h3 className="text-4xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🧚‍♀️ Mon Royaume Féerique 🌿</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>ton coin secret avec le Petit Peuple</p>
+      </div>
+
+      {/* sous-onglets */}
+      <div className="flex flex-nowrap gap-2 mb-5 overflow-x-auto pb-2 -mx-3 px-3 justify-start sm:justify-center">
+        {tabs.map(t=>(
+          <button key={t.k} onClick={()=>setTab(t.k)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm whitespace-nowrap" style={{background:tab===t.k?"var(--primary)":"var(--surface)", color:tab===t.k?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{t.l}</button>
+        ))}
+      </div>
+
+      {/* 1. FAIRY PROFILE */}
+      {tab==="profile" && (
+        <div className="max-w-xl mx-auto rounded-3xl p-6" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+          <h4 className="text-2xl mb-4 text-center" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>Ma fiche d'identité féerique</h4>
+          <div className="space-y-3 text-sm">
+            {[
+              {k:"type",l:"Mon type de fée",ph:"fée des bois, nymphe de l'eau, fée de la nuit, elfe de lumière..."},
+              {k:"wings",l:"Mes ailes (texture & couleur)",ph:"voiles irisés rose pâle, comme des pétales..."},
+              {k:"size",l:"Ma taille",ph:"haute comme une fleur, taille humaine..."},
+              {k:"power",l:"Mon pouvoir élémentaire",ph:"guérison, contrôle des plantes, illusions..."},
+              {k:"companions",l:"Mes créatures compagnes",ph:"un cerf blanc, des lucioles, un renard..."},
+              {k:"realm",l:"Mon royaume",ph:"une forêt enchantée près d'une cascade..."},
+            ].map(f=>(
+              <div key={f.k}>
+                <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>{f.l}</label>
+                <input value={prof[f.k]||""} onChange={e=>setProf({[f.k]:e.target.value})} placeholder={f.ph}
+                  className="w-full mt-1 px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 2. FAIRY LORE (éditable) */}
+      {tab==="lore" && (()=>{
+        const lore = d.lore || FAIRY_LORE_SEED;
+        const setLore = (l)=>set({lore:l});
+        const updL = (id,patch)=>setLore(lore.map(c=>c.id===id?{...c,...patch}:c));
+        return (
+        <div>
+          <div className="flex justify-end mb-3">
+            <button onClick={()=>setLore([{id:uid(),name:"Nouvel être",emoji:"✨",flower:"",likes:"",taboo:"",note:""},...lore])} className="px-3 py-1.5 rounded-full text-sm flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> ajouter une fiche</button>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+          {lore.map(c=>(
+            <div key={c.id} className="rounded-2xl p-4 group relative" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+              <button onClick={()=>setLore(lore.filter(x=>x.id!==c.id))} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><Trash2 size={14}/></button>
+              <div className="flex items-center gap-2 mb-2">
+                <input value={c.emoji} onChange={e=>updL(c.id,{emoji:e.target.value})} className="text-2xl w-10 bg-transparent outline-none text-center"/>
+                <input value={c.name} onChange={e=>updL(c.id,{name:e.target.value})} className="text-xl bg-transparent outline-none flex-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}/>
+              </div>
+              <textarea value={c.note} onChange={e=>updL(c.id,{note:e.target.value})} rows={2} placeholder="description..." className="w-full text-sm mb-2 bg-transparent outline-none" style={{color:"var(--text)", border:"1px solid var(--border)", borderRadius:"8px", padding:"4px 8px"}}/>
+              <div className="flex items-center gap-1 text-xs mb-1"><span>🌸</span><input value={c.flower} onChange={e=>updL(c.id,{flower:e.target.value})} placeholder="fleur associée" className="flex-1 bg-transparent outline-none" style={{color:"var(--muted)"}}/></div>
+              <div className="flex items-center gap-1 text-xs mb-1"><span>💚</span><input value={c.likes} onChange={e=>updL(c.id,{likes:e.target.value})} placeholder="ce qu'ils aiment" className="flex-1 bg-transparent outline-none" style={{color:"var(--muted)"}}/></div>
+              <div className="flex items-center gap-1 text-xs"><span>⚠️</span><input value={c.taboo} onChange={e=>updL(c.id,{taboo:e.target.value})} placeholder="tabou / interdit" className="flex-1 bg-transparent outline-none" style={{color:"#c89a9a"}}/></div>
+            </div>
+          ))}
+          </div>
+        </div>
+      );})()}
+
+      {/* 3. FAIRY GARDEN */}
+      {tab==="garden" && (
+        <div className="max-w-2xl mx-auto">
+          <div className="rounded-2xl p-4 mb-4 text-center" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            <p className="text-sm" style={{color:"var(--text)"}}>🌰 Graines magiques : <b style={{color:"var(--accent)"}}>{garden.seeds||0}</b></p>
+            <p className="text-xs italic mt-1 mb-3" style={{color:"var(--muted)"}}>Passe du temps dans la vraie nature → gagne une graine</p>
+            <button onClick={earnSeed} className="px-4 py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>🌿 J'ai été dans la nature (+1 graine)</button>
+          </div>
+          {(garden.seeds||0)>0 && (
+            <div className="flex gap-2 justify-center mb-4 flex-wrap">
+              {[["🌸","fleur"],["🍄","champignon"],["🌷","tulipe"],["✨","fleur-lumière"]].map(([e,t])=>(
+                <button key={t} onClick={()=>plantSeed(e)} className="px-3 py-1.5 rounded-full text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>planter {e}</button>
+              ))}
+            </div>
+          )}
+          <div className="relative rounded-3xl overflow-hidden" style={{height:"280px", background:"linear-gradient(180deg, #1a2a3a 0%, #2a3a2e 60%, #1e2a1a 100%)", border:"1px solid var(--border)"}}>
+            {Array.from({length:25}).map((_,i)=>(<span key={i} className="absolute rounded-full" style={{top:`${Math.random()*60}%`,left:`${Math.random()*100}%`,width:"2px",height:"2px",background:"#fff",opacity:0.5,animation:`twinkle ${2+Math.random()*2}s ease-in-out infinite`}}/>))}
+            {(garden.plants||[]).map(p=>(
+              <span key={p.id} className="absolute" style={{left:`${p.x}%`, top:`${p.y}%`, fontSize:"26px", filter:"drop-shadow(0 0 6px rgba(200,255,200,0.6))", animation:"floatY 4s ease-in-out infinite"}}>{p.type}</span>
+            ))}
+            {(garden.plants||[]).length===0 && <p className="absolute inset-0 flex items-center justify-center text-sm italic" style={{color:"rgba(255,255,255,0.5)"}}>Ton jardin attend tes premières graines ✦</p>}
+          </div>
+        </div>
+      )}
+
+      {/* 4. FAIRY FEAST (éditable) */}
+      {tab==="feast" && (()=>{
+        const myOff = d.offerings || FAIRY_OFFERINGS[season];
+        const setOff = (l)=>set({offerings:l});
+        return (
+        <div className="max-w-xl mx-auto">
+          <div className="rounded-2xl p-5 mb-4 text-center" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+            <p className="text-xs uppercase tracking-widest" style={{color:"var(--muted)"}}>Offrande suggérée · {season}</p>
+            <p className="text-lg mt-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>{FAIRY_OFFERINGS[season][0]}</p>
+          </div>
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm uppercase tracking-widest" style={{color:"var(--muted)"}}>Mes offrandes</h4>
+            <button onClick={()=>setOff([...myOff,"Nouvelle offrande..."])} className="px-3 py-1 rounded-full text-xs flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> ajouter</button>
+          </div>
+          <div className="space-y-2">
+            {myOff.map((o,i)=>(
+              <div key={i} className="rounded-xl p-3 flex items-center gap-2 group" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+                <span>✦</span>
+                <input value={o} onChange={e=>setOff(myOff.map((x,j)=>j===i?e.target.value:x))} className="flex-1 bg-transparent outline-none text-sm" style={{color:"var(--text)"}}/>
+                <button onClick={()=>setOff(myOff.filter((_,j)=>j!==i))} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={14}/></button>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs italic mt-4 text-center" style={{color:"var(--muted)"}}>Laisse ton offrande dehors, dans un coin de nature, avec une intention douce 🌿</p>
+        </div>
+      );})()}
+
+      {/* 5. FAIRY GLAMOUR */}
+      {tab==="glamour" && (
+        <div>
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <p className="text-sm italic" style={{color:"var(--muted)"}}>Tes inspirations Fairycore & Coquette ✦</p>
+            <button onClick={addGlam} className="px-3 py-1.5 rounded-full text-sm flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={14}/> ajouter</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {glam.map(g=>(
+              <div key={g.id} className="group relative rounded-2xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
+                {g.img ? <img src={g.img} alt="" className="w-full object-cover" style={{aspectRatio:"3/4"}}/> : <div className="w-full flex items-center justify-center text-3xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>🧚</div>}
+                <div className="p-2" style={{background:"var(--surface)"}}>
+                  <input value={g.img} onChange={e=>updGlam(g.id,{img:e.target.value})} placeholder="URL image" className="w-full text-[10px] bg-transparent outline-none mb-1" style={{color:"var(--muted)", borderBottom:"1px solid var(--border)"}}/>
+                  <input value={g.label} onChange={e=>updGlam(g.id,{label:e.target.value})} placeholder="note..." className="w-full text-xs bg-transparent outline-none" style={{color:"var(--text)"}}/>
+                </div>
+                <button onClick={()=>delGlam(g.id)} className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={12}/></button>
+              </div>
+            ))}
+            {glam.length===0 && <p className="col-span-full text-center italic py-8" style={{color:"var(--muted)"}}>Ajoute tes inspirations féeriques ✦</p>}
+          </div>
+        </div>
+      )}
+
+      {/* 6. MÉTÉO FÉERIQUE */}
+      {tab==="weather" && <FairyWeather/>}
+
+      {/* 7. ORACLE */}
+      {tab==="oracle" && (
+        <div className="max-w-md mx-auto text-center">
+          <p className="text-sm italic mb-4" style={{color:"var(--muted)"}}>Tire ta carte du jour pour recevoir la guidance de la nature</p>
+          {card ? (
+            <div className="rounded-3xl p-8 animate-fade-up" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+              <div className="text-6xl mb-3">{card.emoji}</div>
+              <h4 className="text-2xl mb-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>{card.name}</h4>
+              <p className="text-sm" style={{color:"var(--text)"}}>{card.msg}</p>
+              <button onClick={()=>setCard(null)} className="mt-4 text-xs underline" style={{color:"var(--muted)"}}>retirer une carte</button>
+            </div>
+          ) : (
+            <button onClick={drawCard} className="px-6 py-4 rounded-2xl text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>🃏 Tirer ma carte du jour</button>
+          )}
+        </div>
+      )}
+
+      {/* 8. RÊVES D'AVALON */}
+      {tab==="avalon" && (
+        <div className="max-w-xl mx-auto">
+          <div className="rounded-2xl p-4 mb-4" style={{background:"linear-gradient(160deg, #1e2a1a, #2a3a2e)", border:"1px solid var(--accent)"}}>
+            <p className="text-xs italic mb-2" style={{color:"#b8d0b0"}}>🌿 Note ici tes rêves de nature magique, créatures, paysages féeriques...</p>
+            <textarea value={avText} onChange={e=>setAvText(e.target.value)} rows={3} placeholder="Cette nuit j'ai rêvé d'une forêt lumineuse..." className="w-full px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid rgba(180,208,176,0.3)", color:"#eaf5e8"}}/>
+            <button onClick={addAvalon} className="mt-2 px-4 py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ noter ce rêve</button>
+          </div>
+          <div className="space-y-2">
+            {avalon.map(a=>(
+              <div key={a.id} className="rounded-xl p-3" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-sm flex-1" style={{color:"var(--text)"}}>🍃 {a.text}</p>
+                  <button onClick={()=>set({avalon:avalon.filter(x=>x.id!==a.id)})} style={{color:"var(--muted)"}}><X size={14}/></button>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[10px]" style={{color:"var(--muted)"}}>{a.date}</span>
+                  <label className="flex items-center gap-1 text-[11px]" style={{color:"var(--accent)"}}>
+                    <input type="checkbox" checked={a.visited} onChange={e=>set({avalon:avalon.map(x=>x.id===a.id?{...x,visited:e.target.checked}:x)})}/>
+                    j'ai visité leur monde
+                  </label>
+                </div>
+              </div>
+            ))}
+            {avalon.length===0 && <p className="text-center italic py-6 text-sm" style={{color:"var(--muted)"}}>Aucun rêve d'Avalon noté ✦</p>}
+          </div>
+        </div>
+      )}
+
+      {/* 9. FAIRY LAWS */}
+      {tab==="laws" && (
+        <div className="max-w-xl mx-auto">
+          <p className="text-sm italic mb-4 text-center" style={{color:"var(--muted)"}}>Tes lois magiques pour attirer leurs bonnes grâces ✦</p>
+          <div className="space-y-2">
+            {laws.map((law,i)=>(
+              <div key={i} className="rounded-xl p-3 flex items-start gap-3" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--border)"}}>
+                <span className="text-sm flex-shrink-0" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)", fontSize:"18px"}}>Loi {i+1}</span>
+                <input value={law} onChange={e=>setLaws(laws.map((l,j)=>j===i?e.target.value:l))} className="flex-1 bg-transparent outline-none text-sm" style={{color:"var(--text)"}}/>
+                <button onClick={()=>setLaws(laws.filter((_,j)=>j!==i))} style={{color:"var(--muted)"}}><X size={14}/></button>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>setLaws([...laws,"Nouvelle loi magique..."])} className="mt-3 px-4 py-2 rounded-full text-sm flex items-center gap-1 mx-auto" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/> ajouter une loi</button>
+        </div>
+      )}
+
+      {/* 10. BOUTON POUSSIÈRE DE FÉE */}
+      <div className="text-center mt-8 mb-4">
+        <button onClick={()=>{ setDust(true); setTimeout(()=>setDust(false), 6000); }}
+          className="px-5 py-2.5 rounded-full text-sm shadow-lg transition hover:scale-105"
+          style={{ background:"linear-gradient(90deg,#ffc0e0,#e0c97a)", color:"#5a2a4a" }}>
+          ✦ Poussière de Fée — quand tu te sens lourde
+        </button>
+      </div>
+      {dust && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-fade-up" style={{background:"rgba(20,10,30,0.92)"}}>
+          {Array.from({length:60}).map((_,i)=>(<span key={i} className="absolute" style={{top:"-5%", left:`${Math.random()*100}%`, fontSize:`${8+Math.random()*14}px`, opacity:0.8, animation:`fall ${3+Math.random()*4}s linear ${Math.random()*2}s infinite`}}>{["✨","💖","⭐","🌸"][i%4]}</span>))}
+          <div className="text-center max-w-sm relative">
+            <div className="text-5xl mb-4">🧚‍♀️</div>
+            <p className="text-xl leading-relaxed" style={{fontFamily:'"Dancing Script",cursive', color:"#ffd0ee"}}>Respire. Rappelle-toi qui tu es. Tu appartiens au monde de la magie — ne laisse pas la lourdeur des humains éteindre tes ailes.</p>
+            <button onClick={()=>setDust(false)} className="mt-6 px-4 py-2 rounded-full text-xs" style={{background:"rgba(255,255,255,0.2)", color:"#fff"}}>merci ✦</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ BOUTON THÈME DE PAGE — thème indépendant par sous-section
+   ============================================================ */
+function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOverrides, ALL_THEMES, customBackdrops }) {
+  const [open, setOpen] = useState(false);
+  const key = `sub:${activeSection}:${activeSub}`;
+  const ov = overrides[key] || {};
+  const setTheme = (t) => setOverrides({ ...overrides, [key]: { ...ov, theme:t } });
+  const resetTheme = () => { const c={...overrides}; if(c[key]){ const {theme, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); };
+
+  return (
+    <>
+      <button onClick={()=>setOpen(true)} aria-label="Thème de cette page"
+        className="fixed z-40 w-12 h-12 rounded-full flex items-center justify-center transition hover:scale-110 shadow-xl"
+        style={{ left:"calc(env(safe-area-inset-left) + 1rem)", bottom:"calc(env(safe-area-inset-bottom) + 1rem)", background:"var(--surface)", border:"1px solid var(--accent)", color:"var(--accent)" }}>
+        <Palette size={20}/>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center" onClick={()=>setOpen(false)} style={{background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)"}}>
+          <div onClick={e=>e.stopPropagation()} className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[80vh] overflow-y-auto animate-fade-up" style={{background:"var(--bg2)", border:"1px solid var(--accent)"}}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎨 Thème de cette page</h3>
+              <button onClick={()=>setOpen(false)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><X size={18}/></button>
+            </div>
+            <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>« {subLabel} » aura son propre thème, indépendant du reste.</p>
+
+            <button onClick={resetTheme} className="w-full mb-3 py-2 rounded-xl text-xs" style={{background:ov.theme?"var(--surface)":"var(--primary)", border:"1px solid var(--border)", color:ov.theme?"var(--text)":"var(--bg)"}}>
+              ↺ utiliser le thème du côté (par défaut)
+            </button>
+
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(ALL_THEMES).map(([k,t])=>{ const I=t.icon||Sparkles; return (
+                <button key={k} onClick={()=>{ setTheme(k); }} className="p-3 rounded-xl text-left transition" style={{background:"var(--surface)", border:`1px solid ${ov.theme===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
+                  <I size={15} className="mb-1"/><div className="text-[11px] leading-tight">{t.name}</div>
+                </button>
+              );})}
+            </div>
+            {ov.theme && <p className="text-xs text-center mt-3" style={{color:"var(--accent)"}}>✦ Cette page utilise « {ALL_THEMES[ov.theme]?.name} »</p>}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function App() {
   // --- Auth ---
   const [user, setUser] = useState(null);
@@ -2471,6 +4355,8 @@ export default function App() {
             return s;
           }));
           if (data.overrides) setOverrides(data.overrides);
+          if (data.customThemes) setCustomThemes(data.customThemes);
+          if (data.customBackdrops) setCustomBackdrops(data.customBackdrops);
           if (data.tasks) setTasks(data.tasks);
           if (data.widgets) setWidgets(data.widgets);
           if (data.scrapPages) setScrapPages(data.scrapPages);
@@ -2483,6 +4369,14 @@ export default function App() {
           if (data.goals) setGoals(data.goals);
           if (data.gratitude) setGratitude(data.gratitude);
           if (data.moodLog) setMoodLog(data.moodLog);
+          if (data.cycleData) setCycleData(data.cycleData);
+          if (data.bottles) setBottles(data.bottles);
+          if (data.comfortChars) setComfortChars(data.comfortChars);
+          if (data.outfitBoards) setOutfitBoards(data.outfitBoards);
+          if (data.lifeOst) setLifeOst(data.lifeOst);
+          if (data.manifestSeeds) setManifestSeeds(data.manifestSeeds);
+          if (data.fairyData) setFairyData(data.fairyData);
+          if (data.activeDR) setActiveDR(data.activeDR);
           if (data.habits) setHabits(data.habits);
           if (data.dreamLog) setDreamLog(data.dreamLog);
           if (data.tarotLog) setTarotLog(data.tarotLog);
@@ -2526,6 +4420,8 @@ export default function App() {
   const setTheme = (t) => setSectionThemes(prev => ({ ...prev, [activeSection]: t }));
   const [sections, setSections] = useState([{id:"moi",name:"Yasmine",custom:false},{id:"witch",name:"Yasmeen",custom:false}]);
   const [overrides, setOverrides] = useState({}); // {"sec:moi":{backdrop,colors}, "sub:witch:dreams":{...}}
+  const [customThemes, setCustomThemes] = useState({}); // thèmes générés par l'utilisatrice
+  const [customBackdrops, setCustomBackdrops] = useState({}); // fonds animés générés
 
   // DATA
   const [tasks, setTasks] = useState([]);
@@ -2543,6 +4439,14 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [gratitude, setGratitude] = useState([]);
   const [moodLog, setMoodLog] = useState([]);
+  const [cycleData, setCycleData] = useState(null);
+  const [bottles, setBottles] = useState([]);
+  const [comfortChars, setComfortChars] = useState([]);
+  const [outfitBoards, setOutfitBoards] = useState([]);
+  const [lifeOst, setLifeOst] = useState({});
+  const [manifestSeeds, setManifestSeeds] = useState([]);
+  const [fairyData, setFairyData] = useState({});
+  const [activeDR, setActiveDR] = useState(null);
   const [habits, setHabits] = useState([{id:uid(),name:"Boire 2L d'eau",days:{}},{id:uid(),name:"Méditer 10 min",days:{}},{id:uid(),name:"Skincare soir",days:{}}]);
   const [dreamLog, setDreamLog] = useState([]);
   const [tarotLog, setTarotLog] = useState([]);
@@ -2560,37 +4464,42 @@ export default function App() {
     if (!user || !initialLoadDone.current) return;
     const t = setTimeout(()=>{
       saveState(user.uid, {
-        appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides,
+        appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops,
         tasks, widgets, scrapPages, journalPin, grimoireEntries,
         shiftingNotes, astralNotes, passions, wishlist, goals,
-        gratitude, moodLog, habits, dreamLog, tarotLog, intentions,
+        gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, activeDR, habits, dreamLog, tarotLog, intentions,
         customRituals, customTips, customAffirm,
       });
     }, 1000);
     return ()=>clearTimeout(t);
-  }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
+  }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, activeDR, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
 
-  const themeObj = THEMES[theme];
+  const ALL_THEMES = useMemo(()=>({ ...THEMES, ...customThemes }), [customThemes]);
+  const themeObj = ALL_THEMES[theme] || THEMES.myUniverse;
 
-  // résoudre overrides : sous-section > section > thème
+  // résoudre overrides : sous-section > section > thème global
   const secOv = overrides[`sec:${activeSection}`] || {};
   const subOv = overrides[`sub:${activeSection}:${activeSub}`] || {};
-  const activeBackdrop = subOv.backdrop ?? secOv.backdrop ?? themeObj.backdrop;
+  // thème effectif : override sous-section > override section > thème du côté
+  const effectiveThemeKey = subOv.theme || secOv.theme || theme;
+  const effectiveTheme = ALL_THEMES[effectiveThemeKey] || themeObj;
+  const effectiveFont = subOv.font || secOv.font || font;
+  const activeBackdropRaw = subOv.backdrop ?? secOv.backdrop ?? effectiveTheme.backdrop;
+  const activeBackdrop = (activeBackdropRaw && customBackdrops[activeBackdropRaw]) ? customBackdrops[activeBackdropRaw] : activeBackdropRaw;
   const mergedColors = { ...(secOv.colors||{}), ...(subOv.colors||{}) };
 
   useEffect(()=>{
-    Object.entries(themeObj.vars).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
+    Object.entries(effectiveTheme.vars).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
     // applique overrides couleurs
     Object.entries(mergedColors).forEach(([k,v])=>{
       document.documentElement.style.setProperty(k,v);
-      if(k==="--primary"||k==="--accent"){ /* recalcul glow approx */ }
     });
-    document.documentElement.style.setProperty("--font-body", FONTS[font].stack);
+    document.documentElement.style.setProperty("--font-body", FONTS[effectiveFont]?.stack || FONTS[font].stack);
     document.documentElement.style.setProperty("--font-display", FONTS.display.stack);
     document.body.style.background = `linear-gradient(135deg, var(--bg) 0%, var(--bg2) 100%)`;
     document.body.style.color="var(--text)";
     document.body.style.fontFamily="var(--font-body)";
-  }, [theme, font, JSON.stringify(mergedColors)]);
+  }, [effectiveThemeKey, effectiveFont, font, JSON.stringify(effectiveTheme.vars), JSON.stringify(mergedColors)]);
 
   const ritualOfDay=pickByDate(allRituals,"ritual");
   const tipOfDay=pickByDate(allTips,"tip");
@@ -2605,7 +4514,7 @@ export default function App() {
   const addWidget=(type)=>setSecWidgets([...secWidgets, {id:uid(), type, content:"", x:6+Math.random()*10, y:6+Math.random()*10, w: type==="clock"?24:30}]);
   const subTabsFor=(sec)=>SUBTABS[sec]||[];
 
-  const ctx = { theme,setTheme,font,setFont,sections,setSections,activeSection,activeSub,subTabsFor,overrides,setOverrides,customRituals,setCustomRituals,customTips,setCustomTips,customAffirm,setCustomAffirm };
+  const ctx = { theme,setTheme,font,setFont,sections,setSections,activeSection,activeSub,subTabsFor,overrides,setOverrides,customRituals,setCustomRituals,customTips,setCustomTips,customAffirm,setCustomAffirm,ALL_THEMES,customThemes,setCustomThemes,customBackdrops,setCustomBackdrops };
 
   if (!authReady) return (
     <div className="fixed inset-0 flex items-center justify-center" style={{background:"linear-gradient(160deg,#1a0d24,#3a2a5e)"}}>
@@ -2714,10 +4623,23 @@ export default function App() {
           </div>)}
           {activeSub==="habits" && <HabitsTracker habits={habits} setHabits={setHabits}/>}
           {activeSub==="goals" && <CardList items={goals} setItems={setGoals} title="Objectifs & vision board" fields={[{k:"title",label:"Titre"},{k:"deadline",label:"Échéance"},{k:"why",label:"Pourquoi ?",multi:true},{k:"steps",label:"Premiers pas",multi:true},{k:"image",label:"Image URL"}]}/>}
-          {activeSub==="passions" && <PassionsList items={passions} setItems={setPassions}/>}
+          {activeSub==="passions" && <PassionsList items={passions} setItems={setPassions} onMakeDR={(p)=>{
+            const dr = makeBlankDR();
+            dr.name = p.title || "Nouvelle DR";
+            dr.tag = p.type || p.title || "";
+            dr.cover = p.image || "";
+            dr.quote = p.note ? p.note.slice(0,80) : "";
+            dr.sections = dr.sections.map(s=> s.id==="general" ? {...s, content:`Univers inspiré de : ${p.title||""}\n${p.note||""}`} : s);
+            setShiftingNotes([dr, ...shiftingNotes]);
+            setActiveSection("witch"); setActiveSub("shifting");
+          }}/>}
           {activeSub==="wishlist" && <CardList items={wishlist} setItems={setWishlist} title="Wishlist" fields={[{k:"title",label:"Objet"},{k:"price",label:"Prix"},{k:"priority",label:"Priorité"},{k:"url",label:"Lien"},{k:"image",label:"Image URL"}]}/>}
           {activeSub==="gratitude" && <GratitudeJournal entries={gratitude} setEntries={setGratitude}/>}
           {activeSub==="mood" && <MoodTracker log={moodLog} setLog={setMoodLog}/>}
+          {activeSub==="cycle" && <CycleTracker data={cycleData} setData={setCycleData}/>}
+          {activeSub==="comfort" && <ComfortCharacters items={comfortChars} setItems={setComfortChars}/>}
+          {activeSub==="outfits" && <OutfitBoards boards={outfitBoards} setBoards={setOutfitBoards}/>}
+          {activeSub==="ost" && <LifeOST ost={lifeOst} setOst={setLifeOst}/>}
           {activeSub==="journal" && <JournalLock pin={journalPin} setPin={setJournalPin}><ScrapbookEditor pages={scrapPages} setPages={setScrapPages}/></JournalLock>}
         </div>)}
 
@@ -2799,6 +4721,11 @@ export default function App() {
             <div className="lg:col-span-3 grid md:grid-cols-3 gap-4">{[{s:"day",l:"Daily"},{s:"week",l:"Weekly"},{s:"month",l:"Monthly"}].map(b=>(
               <div key={b.s} className="rounded-2xl p-4" style={{background:"var(--surface)", border:"1px solid var(--border)"}}><div className="text-center mb-3"><WoodPlank>{b.l}</WoodPlank></div><TaskList scope={b.s} tasks={tasks} setTasks={setTasks} soft={false}/></div>
             ))}</div>
+            <div className="lg:col-span-3"><ShiftDeck drs={shiftingNotes} activeDR={activeDR} setActiveDR={setActiveDR}/></div>
+            <div className="lg:col-span-3 grid md:grid-cols-2 gap-4">
+              <MoonSpiral/>
+              <ManifestBox seeds={manifestSeeds} setSeeds={setManifestSeeds}/>
+            </div>
           </div>)}
 
           {activeSub==="moon" && (<div className="grid md:grid-cols-2 gap-6">
@@ -2818,6 +4745,8 @@ export default function App() {
             </div>
           </div>)}
 
+          {activeSub==="wheel" && <WheelOfYear/>}
+          {activeSub==="pendulum" && <Pendulum/>}
           {activeSub==="ritual" && (<div className="max-w-3xl mx-auto">
             <div className="rounded-3xl p-8 animate-glow" style={{background:"var(--surface)", border:"2px solid var(--accent)"}}>
               <p className="text-xs uppercase tracking-[0.4em] text-center mb-3" style={{color:"var(--muted)"}}>✦ Rituel du {new Date().toLocaleDateString("fr-FR")} ✦</p>
@@ -2831,7 +4760,10 @@ export default function App() {
             </div>
           </div>)}
 
-          {activeSub==="grimoire" && <CardList items={grimoireEntries} setItems={setGrimoireEntries} title="Mon grimoire personnel" fields={[{k:"title",label:"Nom du sort"},{k:"intention",label:"Intention"},{k:"moon",label:"Phase idéale"},{k:"ingredients",label:"Ingrédients",multi:true},{k:"steps",label:"Étapes",multi:true,big:true},{k:"result",label:"Résultats",multi:true}]}/>}
+          {activeSub==="grimoire" && (<div>
+            <LivingGrimoire moodLog={moodLog} entries={grimoireEntries} setEntries={setGrimoireEntries}/>
+            <CardList items={grimoireEntries} setItems={setGrimoireEntries} title="Mon grimoire personnel" fields={[{k:"title",label:"Nom du sort"},{k:"intention",label:"Intention"},{k:"moon",label:"Phase idéale"},{k:"ingredients",label:"Ingrédients",multi:true},{k:"steps",label:"Étapes",multi:true,big:true},{k:"result",label:"Résultats",multi:true}]}/>
+          </div>)}
 
           {activeSub==="crystals" && (<div>
             <h3 className="text-3xl mb-6" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Bibliothèque des cristaux ✦</h3>
@@ -2857,12 +4789,18 @@ export default function App() {
           {activeSub==="tarot" && <CardList items={tarotLog} setItems={setTarotLog} title="Journal de tirages" fields={[{k:"title",label:"Date/contexte"},{k:"deck",label:"Jeu"},{k:"question",label:"Question"},{k:"cards",label:"Cartes",multi:true},{k:"interpretation",label:"Interprétation",multi:true,big:true}]}/>}
 
           {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes}/>}
+          {activeSub==="anchor" && <RealityAnchor drs={shiftingNotes}/>}
+          {activeSub==="fairy" && <FairyRealm data={fairyData} setData={setFairyData}/>}
 
           {activeSub==="astral" && <CardList items={astralNotes} setItems={setAstralNotes} title="Voyages astraux & expériences" fields={[{k:"title",label:"Date/titre"},{k:"type",label:"Type (OBE, lucide)"},{k:"sensations",label:"Sensations",multi:true},{k:"content",label:"Récit",multi:true,big:true}]}/>}
 
           {activeSub==="dreams" && <DreamJournal entries={dreamLog} setEntries={setDreamLog}/>}
 
-          {activeSub==="intentions" && <CardList items={intentions} setItems={setIntentions} title="Intentions & loi de l'attraction" fields={[{k:"title",label:"Intention"},{k:"deadline",label:"Date cible"},{k:"affirmation",label:"Affirmation présent",multi:true},{k:"feeling",label:"Ressenti une fois réel"},{k:"actions",label:"Actions alignées",multi:true},{k:"signs",label:"Synchronicités",multi:true}]}/>}
+          {activeSub==="intentions" && (<div>
+            <div className="mb-6"><LetGo/></div>
+            <CardList items={intentions} setItems={setIntentions} title="Intentions & loi de l'attraction" fields={[{k:"title",label:"Intention"},{k:"deadline",label:"Date cible"},{k:"affirmation",label:"Affirmation présent",multi:true},{k:"feeling",label:"Ressenti une fois réel"},{k:"actions",label:"Actions alignées",multi:true},{k:"signs",label:"Synchronicités",multi:true}]}/>
+          </div>)}
+          {activeSub==="bottle" && <MessageBottle bottles={bottles} setBottles={setBottles}/>}
         </div>)}
 
         {/* ===== CUSTOM SECTIONS ===== */}
@@ -2906,6 +4844,14 @@ export default function App() {
               <Plus size={26} style={{transform: widgetMenuOpen?"rotate(45deg)":"none", transition:"transform .2s"}}/>
             </button>
           </div>
+
+          {/* BOUTON THÈME DE CETTE PAGE */}
+          <PageThemeButton
+            activeSection={activeSection} activeSub={activeSub}
+            subLabel={(SUBTABS[activeSection]||[]).find(t=>t.k===activeSub)?.label || activeSub}
+            overrides={overrides} setOverrides={setOverrides}
+            ALL_THEMES={ALL_THEMES} customBackdrops={customBackdrops}
+          />
         </>
       )}
 
