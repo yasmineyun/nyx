@@ -1681,6 +1681,7 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
   const [linkInput, setLinkInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [zoom, setZoom] = useState(null); // "library" | "tv" | null
   const open = items.find(i=>i.id===openId);
   useEffect(()=>{ if(openId) window.scrollTo({top:0, behavior:"smooth"}); }, [openId]);
 
@@ -1783,7 +1784,6 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
   const books = works.filter(isBook);
   const screens = works.filter(i=>!isBook(i));
   const favs = works.filter(i=>i.status==="favori");
-  const [zoom, setZoom] = useState(null); // "library" | "tv" | null
 
   // ambiance heure (fenêtre)
   const hr = new Date().getHours();
