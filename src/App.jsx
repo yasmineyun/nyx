@@ -871,16 +871,16 @@ function loadPinterestScript() {
   });
 }
 
-function PinterestPin({ url, size="medium" }) {
+function PinterestPin({ url, size="medium", boardCols=3, boardRows=2 }) {
   const ref = useRef(null);
-  // détecter si c'est une image directe (i.pinimg.com) ou une épingle
   const isDirectImg = /i\.pinimg\.com|\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url||"");
+  // un tableau = pinterest.com/user/board (au moins 2 segments après .com, pas /pin/)
+  const isBoard = /pinterest\.[a-z.]+\/[^/]+\/[^/]+/i.test(url||"") && !/\/pin\//i.test(url||"");
   useEffect(()=>{
     if (isDirectImg || !url) return;
     let cancelled = false;
     loadPinterestScript().then(()=>{
       if (cancelled) return;
-      // PinUtils.build re-scanne la page et rend les épingles
       if (window.PinUtils && window.PinUtils.build) {
         try { window.PinUtils.build(); } catch(e){}
       }
@@ -890,6 +890,11 @@ function PinterestPin({ url, size="medium" }) {
 
   if (!url) return <div className="text-xs italic" style={{color:"var(--muted)"}}>colle un lien Pinterest ↓</div>;
   if (isDirectImg) return <img src={url} alt="" className="w-full rounded-xl object-cover" style={{border:"3px solid #fff"}}/>;
+  if (isBoard) return (
+    <div ref={ref} className="flex justify-center" key={url}>
+      <a data-pin-do="embedBoard" data-pin-board-width="400" data-pin-scale-height={String(boardRows*200)} data-pin-scale-width={String(boardCols*40)} href={url}>tableau Pinterest</a>
+    </div>
+  );
   return (
     <div ref={ref} className="flex justify-center" key={url}>
       <a data-pin-do="embedPin" data-pin-width={size} href={url}>épingle Pinterest</a>
@@ -3066,6 +3071,7 @@ function DRAccordionTemplate({ dr, onUpdate }) {
 
 function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const [activeSection, setActiveSection] = useState(dr.sections[0]?.id || "general");
+  const [showSet, setShowSet] = useState(false);
   const currentSec = dr.sections.find(s=>s.id===activeSection);
 
   const updateSection = (id, patch) => onUpdate({ sections: dr.sections.map(s=>s.id===id?{...s,...patch}:s) });
@@ -3085,8 +3091,15 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const updateGalleryImg = (id, patch) => onUpdate({ gallery: dr.gallery.map(g=>g.id===id?{...g,...patch}:g) });
   const delGalleryImg = (id) => onUpdate({ gallery: dr.gallery.filter(g=>g.id!==id) });
 
+  // thème indépendant pour cette DR
+  const drTheme = dr.theme && THEMES[dr.theme] ? THEMES[dr.theme] : null;
+  const drVars = drTheme ? { ...drTheme.vars } : {};
+  const [showTheme, setShowTheme] = useState(false);
+
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up" style={drTheme ? drVars : undefined}>
+      {/* fond image propre à la DR */}
+      {dr.bgImage && <div className="fixed inset-0 -z-10 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover fixed`, opacity:dr.bgOpacity??0.5}}/>}
       {/* Barre de retour */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <button onClick={onBack} className="flex items-center gap-1 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>
@@ -3095,10 +3108,31 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
         <button onClick={()=>onUpdate({favorite:!dr.favorite})} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:dr.favorite?"#e0c97a":"var(--text)"}}>
           {dr.favorite ? "⭐ favorite" : "☆ ajouter aux favoris"}
         </button>
+        <button onClick={()=>setShowTheme(s=>!s)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>🎨 thème</button>
         <button onClick={onDelete} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}>
           <Trash2 size={12} className="inline mr-1"/> supprimer DR
         </button>
       </div>
+
+      {/* picker thème de la DR */}
+      {showTheme && (
+        <div className="rounded-2xl p-4 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+          <p className="text-xs mb-2" style={{color:"var(--accent)"}}>🎨 Ambiance de cette DR (indépendante du reste)</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button onClick={()=>onUpdate({theme:null})} className="px-3 py-1.5 rounded-full text-xs" style={{background:!dr.theme?"var(--primary)":"var(--surface2)", color:!dr.theme?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>défaut</button>
+            {Object.entries(THEMES).map(([k,t])=>(
+              <button key={k} onClick={()=>onUpdate({theme:k})} className="px-3 py-1.5 rounded-full text-xs" style={{background:dr.theme===k?"var(--primary)":"var(--surface2)", color:dr.theme===k?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{t.icon} {t.name}</button>
+            ))}
+          </div>
+          <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Image de fond de la DR</p>
+          <ImgPicker value={dr.bgImage} onChange={v=>onUpdate({bgImage:v})} placeholder="URL image de fond"/>
+          {dr.bgImage && (<>
+            <p className="text-[10px] mt-2" style={{color:"var(--muted)"}}>Opacité : {Math.round((dr.bgOpacity??0.5)*100)}%</p>
+            <input type="range" min="0.1" max="1" step="0.05" value={dr.bgOpacity??0.5} onChange={e=>onUpdate({bgOpacity:parseFloat(e.target.value)})} className="w-full"/>
+            <button onClick={()=>onUpdate({bgImage:null})} className="text-[11px] underline mt-1" style={{color:"var(--muted)"}}>retirer l'image</button>
+          </>)}
+        </div>
+      )}
 
       {/* HERO : couverture + nom + citation */}
       <div className="relative rounded-3xl overflow-hidden mb-6" style={{border:"1px solid var(--border)", boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
@@ -3117,16 +3151,18 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
           </div>
         </div>
         {/* callout temporel */}
-        <div className="px-4 py-3" style={{background:"var(--surface2)", borderBottom:"1px solid var(--border)"}}>
-          <div className="rounded-xl px-4 py-2 flex items-center gap-2 text-sm mx-auto" style={{background:"rgba(var(--glow),0.12)", border:"1px solid var(--accent)", maxWidth:"fit-content"}}>
+        <div className="px-4 py-3 flex items-center justify-center gap-2" style={{background:"var(--surface2)", borderBottom:"1px solid var(--border)"}}>
+          <div className="rounded-xl px-4 py-2 flex items-center gap-2 text-sm" style={{background:"rgba(var(--glow),0.12)", border:"1px solid var(--accent)"}}>
             <span>⏳</span>
             <input value={dr.timeRule||""} onChange={e=>onUpdate({timeRule:e.target.value})} placeholder="1 heure [CR] = 1 semaine [DR] !"
-              className="bg-transparent outline-none text-center" style={{color:"var(--accent)", minWidth:"220px"}}/>
+              className="bg-transparent outline-none text-center" style={{color:"var(--accent)", minWidth:"200px"}}/>
           </div>
+          <button onClick={()=>setShowSet(s=>!s)} title="modifier couverture, tag, blason" className="p-2 rounded-full" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--muted)"}}>✏️</button>
         </div>
+        {showSet && (
         <div className="grid sm:grid-cols-3 gap-3 p-4" style={{background:"var(--surface)"}}>
           <div>
-            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Couverture</label>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Couverture (bannière)</label>
             <div className="mt-1"><ImgPicker value={dr.cover} onChange={v=>onUpdate({cover:v})} placeholder="URL couverture"/></div>
           </div>
           <div>
@@ -3135,10 +3171,11 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
               className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Blason / icône</label>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Blason / icône (PNG transparent conseillé)</label>
             <div className="mt-1"><ImgPicker value={dr.crest} onChange={v=>onUpdate({crest:v})} placeholder="petit logo en haut"/></div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Playlist — tourne-disque */}
@@ -3197,6 +3234,15 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
           </button>
         </div>
         {dr.gallery.length===0 && <p className="text-sm italic text-center py-6" style={{color:"var(--muted)"}}>Aucune image. Ajoute des photos pour visualiser ta DR.</p>}
+
+        {/* tableau Pinterest */}
+        <div className="rounded-xl p-3 mb-4" style={{background:"var(--surface2)", border:"1px dashed var(--accent)"}}>
+          <p className="text-[11px] mb-2" style={{color:"var(--accent)"}}>📌 Mon tableau Pinterest (s'affiche en entier ci-dessous)</p>
+          <input value={dr.pinBoard||""} onChange={e=>onUpdate({pinBoard:e.target.value})} placeholder="colle le lien de ton tableau Pinterest..."
+            className="w-full text-xs px-2 py-1.5 rounded bg-transparent outline-none mb-2" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          {dr.pinBoard && <div className="rounded-lg overflow-hidden"><PinterestPin url={dr.pinBoard} boardCols={4} boardRows={3}/></div>}
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {dr.gallery.map(g=>(
             <div key={g.id} className="group relative rounded-xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
@@ -3363,43 +3409,127 @@ const REL_LINES = {
 function DRSocialGraph({ dr, onUpdate }) {
   const people = dr.people || [];
   const [line, setLine] = useState(null);
-  const add = ()=>onUpdate({people:[...people,{id:uid(),name:"",img:"",level:"ami",affinity:50}]});
+  const [openId, setOpenId] = useState(null);
+  const add = ()=>{ const id=uid(); onUpdate({people:[...people,{id,name:"",lastname:"",img:"",level:"ami",affinity:50,photos:[],background:"",personality:"",relation:"",scenarios:""}]}); setOpenId(id); };
   const upd = (id,patch)=>onUpdate({people:people.map(p=>p.id===id?{...p,...patch}:p)});
   const speak = (p)=>{ const pool=REL_LINES[p.level]||REL_LINES.ami; setLine({name:p.name||"?", text:pool[Math.floor(Math.random()*pool.length)]}); };
+  const cur = people.find(p=>p.id===openId);
+
   return (
     <div className="mt-8 rounded-2xl p-5 sm:p-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>👥 Mes relations en DR</h3>
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>👥 Mon entourage en DR</h3>
         <button onClick={add} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> ajouter</button>
       </div>
-      <div className="grid sm:grid-cols-2 gap-3">
+
+      {/* GALERIE DE CARTES */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {people.map(p=>{
           const lvl = REL_LEVELS.find(l=>l.k===p.level)||REL_LEVELS[2];
           return (
-          <div key={p.id} className="rounded-xl p-3 group" style={{background:"var(--surface2)", border:`1px solid ${lvl.color}66`}}>
-            <div className="flex items-center gap-3 mb-2">
-              {p.img ? <img src={p.img} alt="" className="w-12 h-12 rounded-full object-cover" style={{border:`2px solid ${lvl.color}`}}/> : <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl" style={{background:"var(--surface)"}}>{lvl.emoji}</div>}
-              <div className="flex-1 min-w-0">
-                <input value={p.name} onChange={e=>upd(p.id,{name:e.target.value})} placeholder="nom du personnage" className="w-full bg-transparent outline-none text-sm" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)", fontSize:"16px"}}/>
-                <div><ImgPicker value={p.img} onChange={v=>upd(p.id,{img:v})} placeholder="URL photo" small/></div>
+          <button key={p.id} onClick={()=>setOpenId(p.id)} className="group relative rounded-2xl overflow-hidden text-left transition hover:scale-[1.03]" style={{border:`2px solid ${lvl.color}`, background:"var(--surface2)", boxShadow:`0 4px 16px ${lvl.color}33`}}>
+            {/* visage */}
+            <div className="relative" style={{aspectRatio:"3/4", background: p.img?`url(${p.img}) center/cover`:"linear-gradient(160deg, var(--surface2), var(--surface))"}}>
+              {!p.img && <div className="absolute inset-0 flex items-center justify-center text-4xl">{lvl.emoji}</div>}
+              <div className="absolute inset-0" style={{background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)"}}/>
+              {/* badge rôle lumineux */}
+              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-bold" style={{background:lvl.color, color:"#fff", boxShadow:`0 0 10px ${lvl.color}`}}>{lvl.emoji} {lvl.l}</span>
+              {/* nom */}
+              <div className="absolute bottom-0 inset-x-0 p-2">
+                <p className="text-sm leading-tight" style={{fontFamily:'"Dancing Script",cursive', color:"#fff", textShadow:"0 1px 4px rgba(0,0,0,0.8)", fontSize:"17px"}}>{p.name||"Sans nom"}</p>
+                {p.lastname && <p className="text-[10px]" style={{color:"#fff", opacity:0.85}}>{p.lastname}</p>}
               </div>
-              <button onClick={()=>onUpdate({people:people.filter(x=>x.id!==p.id)})} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={14}/></button>
             </div>
-            <select value={p.level} onChange={e=>upd(p.id,{level:e.target.value})} className="w-full text-xs px-2 py-1 rounded bg-transparent outline-none mb-2" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
-              {REL_LEVELS.map(l=>(<option key={l.k} value={l.k} style={{background:"var(--bg2)"}}>{l.emoji} {l.l}</option>))}
-            </select>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px]" style={{color:"var(--muted)"}}>affinité</span>
-              <input type="range" min="0" max="100" value={p.affinity} onChange={e=>upd(p.id,{affinity:parseInt(e.target.value)})} className="flex-1"/>
-              <span className="text-[10px]" style={{color:lvl.color}}>{p.affinity}%</span>
-            </div>
-            <button onClick={()=>speak(p)} className="w-full py-1.5 rounded-full text-[11px]" style={{background:"var(--surface)", border:`1px solid ${lvl.color}`, color:lvl.color}}>💬 qu'est-ce qu'il/elle me dirait ?</button>
-          </div>
+          </button>
         );})}
-        {people.length===0 && <p className="col-span-2 text-center italic py-4 text-sm" style={{color:"var(--muted)"}}>Ajoute les personnages de ta DR ✦</p>}
+        {people.length===0 && <p className="col-span-full text-center italic py-6 text-sm" style={{color:"var(--muted)"}}>Ajoute les personnages de ta DR — crush, meilleure amie, rival... ✦</p>}
       </div>
+
+      {/* PROFIL DÉTAILLÉ (plein écran) */}
+      {cur && (()=>{
+        const lvl = REL_LEVELS.find(l=>l.k===cur.level)||REL_LEVELS[2];
+        const photos = cur.photos||[];
+        return (
+        <div className="fixed inset-0 z-[80] overflow-y-auto animate-fade-up" style={{background:"rgba(10,8,20,0.85)", backdropFilter:"blur(6px)"}} onClick={()=>setOpenId(null)}>
+          <div className="min-h-full flex items-start justify-center p-4 py-8">
+            <div className="w-full max-w-2xl rounded-3xl overflow-hidden" style={{background:"var(--bg2)", border:`2px solid ${lvl.color}`}} onClick={e=>e.stopPropagation()}>
+              {/* hero */}
+              <div className="relative" style={{minHeight:"200px", background: cur.img?`linear-gradient(to top, var(--bg2), transparent 60%), url(${cur.img}) center/cover`:`linear-gradient(160deg, ${lvl.color}44, var(--surface))`}}>
+                <button onClick={()=>setOpenId(null)} className="absolute top-3 right-3 p-2 rounded-full" style={{background:"rgba(0,0,0,0.5)", color:"#fff"}}><X size={16}/></button>
+                <div className="absolute bottom-3 left-4 right-4">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{background:lvl.color, color:"#fff", boxShadow:`0 0 12px ${lvl.color}`}}>{lvl.emoji} {lvl.l}</span>
+                  <div className="flex gap-2 items-end mt-1">
+                    <input value={cur.name} onChange={e=>upd(cur.id,{name:e.target.value})} placeholder="prénom" className="bg-transparent outline-none text-3xl" style={{fontFamily:'"Dancing Script",cursive', color:"#fff", textShadow:"0 2px 8px rgba(0,0,0,0.8)"}}/>
+                    <input value={cur.lastname||""} onChange={e=>upd(cur.id,{lastname:e.target.value})} placeholder="nom" className="bg-transparent outline-none text-lg pb-1" style={{color:"#fff", textShadow:"0 2px 8px rgba(0,0,0,0.8)"}}/>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* photo principale + rôle + affinité */}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Photo principale</label>
+                    <div className="mt-1"><ImgPicker value={cur.img} onChange={v=>upd(cur.id,{img:v})} placeholder="URL visage"/></div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Rôle pour moi</label>
+                    <select value={cur.level} onChange={e=>upd(cur.id,{level:e.target.value})} className="w-full mt-1 text-xs px-2 py-2 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
+                      {REL_LEVELS.map(l=>(<option key={l.k} value={l.k} style={{background:"var(--bg2)"}}>{l.emoji} {l.l}</option>))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px]" style={{color:"var(--muted)"}}>affinité avec moi</span>
+                  <input type="range" min="0" max="100" value={cur.affinity} onChange={e=>upd(cur.id,{affinity:parseInt(e.target.value)})} className="flex-1"/>
+                  <span className="text-xs" style={{color:lvl.color}}>{cur.affinity}%</span>
+                </div>
+
+                {/* champs détaillés */}
+                {[
+                  {k:"background", label:"📖 Background & histoire", ph:"D'où vient cette personne, sa vie, son passé..."},
+                  {k:"personality", label:"✨ Traits de caractère", ph:"Sa personnalité, ses manies, ce qui la rend unique..."},
+                  {k:"relation", label:"💗 Notre relation", ph:"Comment on s'est rencontrés, ce qu'on vit, notre dynamique..."},
+                  {k:"scenarios", label:"🎬 Scénarios clés ensemble", ph:"Les moments importants qu'on va vivre là-bas..."},
+                ].map(f=>(
+                  <div key={f.k}>
+                    <label className="text-xs font-bold" style={{color:"var(--accent)"}}>{f.label}</label>
+                    <textarea value={cur[f.k]||""} onChange={e=>upd(cur.id,{[f.k]:e.target.value})} rows={3} placeholder={f.ph} className="w-full mt-1 bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", borderRadius:"10px", padding:"8px", color:"var(--text)"}}/>
+                  </div>
+                ))}
+
+                {/* galerie de photos perso */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold" style={{color:"var(--accent)"}}>📸 Ses photos</label>
+                    <button onClick={()=>upd(cur.id,{photos:[...photos,{id:uid(),url:"",cap:""}]})} className="text-[11px] flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={11}/> photo</button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {photos.map(ph=>(
+                      <div key={ph.id} className="group relative rounded-lg overflow-hidden" style={{border:"1px solid var(--border)"}}>
+                        {ph.url ? <img src={ph.url} alt="" className="w-full object-cover" style={{aspectRatio:"1"}}/> : <div className="flex items-center justify-center text-xl" style={{aspectRatio:"1", background:"var(--surface2)"}}>📸</div>}
+                        <div className="p-1" style={{background:"var(--surface2)"}}>
+                          <ImgPicker value={ph.url} onChange={v=>upd(cur.id,{photos:photos.map(x=>x.id===ph.id?{...x,url:v}:x)})} placeholder="URL" small/>
+                          <input value={ph.cap||""} onChange={e=>upd(cur.id,{photos:photos.map(x=>x.id===ph.id?{...x,cap:e.target.value}:x)})} placeholder="légende" className="w-full text-[9px] bg-transparent outline-none italic mt-0.5" style={{color:"var(--muted)"}}/>
+                        </div>
+                        <button onClick={()=>upd(cur.id,{photos:photos.filter(x=>x.id!==ph.id)})} className="absolute top-0.5 right-0.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={10}/></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button onClick={()=>speak(cur)} className="flex-1 py-2 rounded-full text-xs" style={{background:"var(--surface)", border:`1px solid ${lvl.color}`, color:lvl.color}}>💬 qu'est-ce qu'il/elle me dirait ?</button>
+                  <button onClick={()=>{ if(confirm("Supprimer ce personnage ?")){ onUpdate({people:people.filter(x=>x.id!==cur.id)}); setOpenId(null); } }} className="px-4 py-2 rounded-full text-xs" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}><Trash2 size={12}/></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );})()}
+
       {line && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-8" style={{background:"rgba(0,0,0,0.7)"}} onClick={()=>setLine(null)}>
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-8" style={{background:"rgba(0,0,0,0.7)"}} onClick={()=>setLine(null)}>
           <div className="max-w-sm text-center rounded-3xl p-6" style={{background:"var(--surface)", border:"1px solid var(--accent)"}} onClick={e=>e.stopPropagation()}>
             <p className="text-xs uppercase tracking-widest mb-2" style={{color:"var(--muted)"}}>{line.name}</p>
             <p className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>{line.text}</p>
@@ -5005,6 +5135,8 @@ function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOve
   const resetTheme = () => { const c={...overrides}; if(c[key]){ const {theme, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); };
   const setBackdrop = (b) => setOverrides({ ...overrides, [key]: { ...ov, backdrop:b } });
   const resetBackdrop = () => { const c={...overrides}; if(c[key]){ const {backdrop, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); };
+  const setBgImg = (v) => { if(v) setOverrides({ ...overrides, [key]: { ...ov, bgImage:v } }); else { const c={...overrides}; if(c[key]){ const {bgImage, bgOpacity, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); } };
+  const setBgOpacity = (o) => setOverrides({ ...overrides, [key]: { ...ov, bgOpacity:o } });
 
   return (
     <>
@@ -5023,10 +5155,11 @@ function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOve
             </div>
             <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>« {subLabel} » — thème et fond indépendants du reste.</p>
 
-            {/* onglets thème / fond */}
+            {/* onglets thème / fond / image */}
             <div className="flex gap-2 mb-4">
-              <button onClick={()=>setTab("theme")} className="flex-1 py-2 rounded-lg text-xs" style={{background:tab==="theme"?"var(--primary)":"var(--surface)", color:tab==="theme"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>🎨 Thème</button>
-              <button onClick={()=>setTab("backdrop")} className="flex-1 py-2 rounded-lg text-xs" style={{background:tab==="backdrop"?"var(--primary)":"var(--surface)", color:tab==="backdrop"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>✨ Fond animé</button>
+              <button onClick={()=>setTab("theme")} className="flex-1 py-2 rounded-lg text-[11px]" style={{background:tab==="theme"?"var(--primary)":"var(--surface)", color:tab==="theme"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>🎨 Thème</button>
+              <button onClick={()=>setTab("backdrop")} className="flex-1 py-2 rounded-lg text-[11px]" style={{background:tab==="backdrop"?"var(--primary)":"var(--surface)", color:tab==="backdrop"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>✨ Fond animé</button>
+              <button onClick={()=>setTab("image")} className="flex-1 py-2 rounded-lg text-[11px]" style={{background:tab==="image"?"var(--primary)":"var(--surface)", color:tab==="image"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>🖼️ Image</button>
             </div>
 
             {tab==="theme" && (<>
@@ -5062,6 +5195,17 @@ function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOve
                   </button>
                 ))}
               </div>
+            </>)}
+
+            {tab==="image" && (<>
+              <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Une image de fond rien que pour cette page (URL ou galerie).</p>
+              <ImgPicker value={ov.bgImage} onChange={v=>setBgImg(v)} placeholder="URL image de fond"/>
+              {ov.bgImage && (<>
+                <div className="mt-3 rounded-xl overflow-hidden" style={{height:"90px", background:`url(${ov.bgImage}) center/cover`, border:"1px solid var(--border)"}}/>
+                <p className="text-[10px] uppercase tracking-widest mt-3 mb-1" style={{color:"var(--muted)"}}>Opacité : {Math.round((ov.bgOpacity??0.5)*100)}%</p>
+                <input type="range" min="0.1" max="1" step="0.05" value={ov.bgOpacity??0.5} onChange={e=>setBgOpacity(parseFloat(e.target.value))} className="w-full"/>
+                <button onClick={()=>setBgImg(null)} className="w-full mt-3 py-2 rounded-xl text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>retirer l'image</button>
+              </>)}
             </>)}
           </div>
         </div>
@@ -5624,6 +5768,8 @@ export default function App() {
   const effectiveFont = subOv.font || secOv.font || font;
   const activeBackdropRaw = subOv.backdrop ?? secOv.backdrop ?? effectiveTheme.backdrop;
   const activeBackdrop = (activeBackdropRaw && customBackdrops[activeBackdropRaw]) ? customBackdrops[activeBackdropRaw] : activeBackdropRaw;
+  const bgImage = subOv.bgImage ?? secOv.bgImage ?? null;
+  const bgOpacity = subOv.bgOpacity ?? secOv.bgOpacity ?? 0.5;
   const mergedColors = { ...(secOv.colors||{}), ...(subOv.colors||{}) };
 
   useEffect(()=>{
@@ -5747,6 +5893,7 @@ export default function App() {
         input,textarea,select{font-family:inherit}
       `}</style>
 
+      {bgImage && <div className="fixed inset-0 -z-20 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity}}/>}
       <Backdrop kind={activeBackdrop}/>
 
       <header className="sticky top-0 z-30 backdrop-blur-xl" style={{background:"rgba(0,0,0,0.08)", borderBottom:"1px solid var(--border)"}}>
