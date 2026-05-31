@@ -1115,21 +1115,59 @@ const NOTE_FONTS = {
   pinyon:{name:"Royal",stack:'"Pinyon Script",cursive'},
   homemade:{name:"Crayon",stack:'"Homemade Apple",cursive'},
   shadows:{name:"Feutre",stack:'"Shadows Into Light",cursive'},
-  amatic:{name:"Fin & haut",stack:'"Amatic SC",cursive'},
+  amatic:{name:"Fin & haut (Coquette)",stack:'"Amatic SC",cursive'},
   playfair:{name:"Magazine",stack:'"Playfair Display",serif'},
   cormorant:{name:"Classique",stack:'"Cormorant Garamond",serif'},
+  cormorantsc:{name:"Petites capitales",stack:'"Cormorant SC",serif'},
   italiana:{name:"Couture",stack:'"Italiana",serif'},
   marcellus:{name:"Antique",stack:'"Marcellus",serif'},
   fraunces:{name:"Vintage",stack:'"Fraunces",serif'},
+  yeseva:{name:"Romantique",stack:'"Yeseva One",serif'},
+  gloock:{name:"Éditorial",stack:'"Gloock",serif'},
   cinzel:{name:"Gravé",stack:'"Cinzel",serif'},
-  gothic:{name:"Gothique",stack:'"UnifrakturCook",cursive'},
+  cinzeldeco:{name:"Grimoire orné",stack:'"Cinzel Decorative",serif'},
+  gothic:{name:"Gothique (sorcière)",stack:'"UnifrakturCook",cursive'},
+  monoton:{name:"Néon Y2K",stack:'"Monoton",cursive'},
+  majormono:{name:"Mono chic",stack:'"Major Mono Display",monospace'},
   spacemono:{name:"Rétro mono",stack:'"Space Mono",monospace'},
+  vt:{name:"Pixel rétro",stack:'"VT323",monospace'},
   pixel:{name:"Pixel Y2K",stack:'"Pixelify Sans",sans-serif'},
-  sans:{name:"Net",stack:'system-ui,sans-serif'},
+  sans:{name:"Minimaliste",stack:'system-ui,sans-serif'},
 };
 const NOTE_COLORS = ["#2a2a2a","#7a2a4a","#2a4a7a","#2a6a4a","#8a5a10","#6a2a8a","#c0392b","#d4a017","#f0ece0","#ff9ed8"];
+const NOTE_HILITES = ["#fff3a0","#ffd0e0","#c0f0d0","#c0e0ff","#e0d0ff","#ffe0c0"];
 
-function RichNote({ page, updatePage }) {
+/* sticker déplaçable (image ou note) posé sur le papier */
+function FloatingSticker({ st, onChange, onDelete }) {
+  const ref = useRef(null);
+  const drag = useRef(null);
+  const start = (e) => {
+    if (st.locked) return;
+    if (e.target.closest(".st-edit")) return;
+    const pt = e.touches ? e.touches[0] : e;
+    drag.current = { sx:pt.clientX, sy:pt.clientY, ox:st.x, oy:st.y };
+    const move = (ev) => { const p=ev.touches?ev.touches[0]:ev; onChange({ ...st, x: drag.current.ox+(p.clientX-drag.current.sx), y: drag.current.oy+(p.clientY-drag.current.sy) }); };
+    const up = () => { window.removeEventListener("mousemove",move); window.removeEventListener("mouseup",up); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",up); };
+    window.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+    window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
+  };
+  useEffect(()=>{ if(st.kind==="note" && ref.current && ref.current.innerHTML!==(st.html||"")) ref.current.innerHTML = st.html||""; }, [st.id]);
+  return (
+    <div className="absolute group" style={{ left:st.x, top:st.y, width:st.w||(st.kind==="img"?160:180), zIndex:st.z||20 }}>
+      <div onMouseDown={start} onTouchStart={start} className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition" style={{cursor:st.locked?"default":"move"}}>
+        {!st.locked && <span className="text-[8px] mr-auto px-1 rounded" style={{background:"var(--primary)", color:"var(--bg)"}}>⠿</span>}
+        <button onClick={()=>onChange({...st, locked:!st.locked})} title="figer" className="text-[10px] px-1 rounded" style={{background:"var(--surface2)"}}>{st.locked?"🔒":"🔓"}</button>
+        <button onClick={onDelete} className="px-1 rounded" style={{background:"var(--surface2)", color:"var(--muted)"}}><X size={11}/></button>
+      </div>
+      {st.kind==="img"
+        ? <img src={st.src} alt="" className="w-full rounded-lg" style={{boxShadow:"0 2px 10px rgba(0,0,0,0.25)", border:"3px solid #fff"}}/>
+        : <div ref={ref} contentEditable suppressContentEditableWarning onInput={()=>onChange({...st, html:ref.current.innerHTML})}
+            className="st-edit richnote p-2 rounded-lg outline-none text-sm" style={{ background:st.bg||"rgba(255,247,200,0.95)", color:"#3a3228", minHeight:"40px", fontFamily:'"Caveat",cursive', fontSize:"16px", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}/>}
+    </div>
+  );
+}
+
+function RichNote({ page, updatePage, compact=false }) {
   const ref = useRef(null);
   const savedSel = useRef(null);
   const paper = NOTE_PAPERS[page.paper||"white"] || NOTE_PAPERS.white;
@@ -1139,7 +1177,6 @@ function RichNote({ page, updatePage }) {
     : `repeating-linear-gradient(transparent, transparent 31px, ${paper.lines} 32px)`;
   const torn = page.paper==="torn";
 
-  // init contenu une seule fois
   useEffect(()=>{
     if (ref.current && ref.current.innerHTML !== (page.html||"")) {
       ref.current.innerHTML = page.html || (page.body ? page.body.replace(/\n/g,"<br>") : "");
@@ -1147,10 +1184,9 @@ function RichNote({ page, updatePage }) {
   }, [page.id]);
 
   const saveSel = () => { const s=window.getSelection(); if(s&&s.rangeCount&&ref.current?.contains(s.anchorNode)) savedSel.current=s.getRangeAt(0).cloneRange(); };
-  // garantit une sélection valide : garde la sélection LIVE si présente, sinon restaure la sauvegardée
   const ensureSel = () => {
     const s = window.getSelection();
-    if (s && s.rangeCount && !s.isCollapsed && ref.current?.contains(s.anchorNode)) return s; // sélection réelle active
+    if (s && s.rangeCount && !s.isCollapsed && ref.current?.contains(s.anchorNode)) return s;
     if (savedSel.current) { try { s.removeAllRanges(); s.addRange(savedSel.current); } catch {} }
     return window.getSelection();
   };
@@ -1162,7 +1198,6 @@ function RichNote({ page, updatePage }) {
     document.execCommand(cmd, false, val);
     commit();
   };
-  // enrobe la sélection dans un span avec un style, en effaçant l'ancienne valeur de cette propriété
   const wrapStyle = (styleProp, value, extra={}) => {
     const sel = ensureSel();
     if (!sel || sel.rangeCount===0 || sel.isCollapsed) return;
@@ -1183,61 +1218,145 @@ function RichNote({ page, updatePage }) {
   const setSize = (px) => wrapStyle("fontSize", px+"px", {also:"lineHeight", alsoVal:"1.4"});
   const setFontFam = (stack) => wrapStyle("fontFamily", stack);
 
+  // insérer un widget (image ou audio) à la position du curseur
+  const insertHTML = (html) => {
+    ref.current?.focus();
+    const sel = window.getSelection();
+    if (savedSel.current && ref.current?.contains(savedSel.current.startContainer)) { sel.removeAllRanges(); sel.addRange(savedSel.current); }
+    document.execCommand("insertHTML", false, html + "<br>");
+    commit();
+  };
+  const insertImage = async (file) => {
+    const d = await fileToCompressedDataUrl(file, 1000, 0.8);
+    insertHTML(`<img src="${d}" style="max-width:100%;border-radius:12px;margin:8px 0;display:block;" />`);
+  };
+  const insertImageUrl = () => { const u=prompt("URL de l'image :"); if(u) insertHTML(`<img src="${u}" style="max-width:100%;border-radius:12px;margin:8px 0;display:block;" />`); };
+  const insertAudio = () => {
+    const u = prompt("Lien audio (Spotify, SoundCloud, ou .mp3) :"); if(!u) return;
+    if (u.includes("spotify.com")) {
+      const e = spotifyEmbedUrl(u);
+      insertHTML(`<iframe src="${e}" width="100%" height="80" frameborder="0" allow="encrypted-media" style="border-radius:10px;margin:8px 0;"></iframe>`);
+    } else if (u.includes("soundcloud.com")) {
+      insertHTML(`<iframe width="100%" height="120" frameborder="0" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(u)}" style="border-radius:10px;margin:8px 0;"></iframe>`);
+    } else {
+      insertHTML(`<audio controls src="${u}" style="width:100%;margin:8px 0;"></audio>`);
+    }
+  };
+
   const SIZES = [{l:"Titre",px:34},{l:"S-titre",px:27},{l:"Normal",px:21},{l:"Petit",px:17},{l:"Mini",px:14}];
+
+  // stickers flottants déplaçables
+  const stickers = page.stickers || [];
+  const addSticker = (st) => updatePage({ stickers:[...stickers, st] });
+  const updSticker = (s) => updatePage({ stickers: stickers.map(x=>x.id===s.id?s:x) });
+  const delSticker = (id) => updatePage({ stickers: stickers.filter(x=>x.id!==id) });
+  const addImgStickerFile = async (file) => { const src=await fileToCompressedDataUrl(file,900,0.8); addSticker({ id:uid(), kind:"img", src, x:40, y:60, w:160, z:20+stickers.length }); };
+  const addImgStickerUrl = () => { const u=prompt("URL de l'image à poser :"); if(u) addSticker({ id:uid(), kind:"img", src:u, x:40, y:60, w:160, z:20+stickers.length }); };
+  const addNoteSticker = () => addSticker({ id:uid(), kind:"note", html:"", x:50, y:50, w:180, z:20+stickers.length });
 
   return (
     <div>
       {/* barre d'outils */}
-      <div className="flex flex-wrap items-center gap-3 mb-3 p-3 rounded-xl" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
-        <p className="w-full text-[10px] italic" style={{color:"var(--muted)"}}>✦ Sélectionne du texte, puis applique taille / couleur / style — seul le passage choisi change.</p>
+      <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <p className="w-full text-[10px] italic" style={{color:"var(--muted)"}}>✦ Sélectionne du texte pour le styliser · insère images & audio où tu veux</p>
 
-        {/* police globale */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Police</span>
-          <select defaultValue="" onMouseDown={saveSel} onChange={e=>{ const k=e.target.value; if(!k) return; if(k==="_all"){ updatePage({noteFont: page._lastPick||"caveat"}); } else { setFontFam(NOTE_FONTS[k].stack); updatePage({_lastPick:k}); } e.target.value=""; }} className="text-xs px-2 py-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", maxWidth:"140px"}}>
-            <option value="" style={{background:"var(--bg2)"}}>✦ police…</option>
-            {Object.entries(NOTE_FONTS).map(([k,f])=>(<option key={k} value={k} style={{background:"var(--bg2)", fontFamily:f.stack}}>{f.name}</option>))}
-            <option value="_all" style={{background:"var(--bg2)"}}>— appliquer à toute la note —</option>
-          </select>
+        <select defaultValue="" onMouseDown={saveSel} onChange={e=>{ const k=e.target.value; if(!k) return; if(k==="_all"){ updatePage({noteFont: page._lastPick||"caveat"}); } else { setFontFam(NOTE_FONTS[k].stack); updatePage({_lastPick:k}); } e.target.value=""; }} className="text-xs px-2 py-1.5 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", maxWidth:"150px"}}>
+          <option value="" style={{background:"var(--bg2)"}}>✦ police… (20+)</option>
+          {Object.entries(NOTE_FONTS).map(([k,f])=>(<option key={k} value={k} style={{background:"var(--bg2)"}}>{f.name}</option>))}
+          <option value="_all" style={{background:"var(--bg2)"}}>— toute la page —</option>
+        </select>
+
+        <div className="flex items-center gap-1">
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("bold")} className="w-7 h-7 rounded text-sm font-bold" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>B</button>
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("italic")} className="w-7 h-7 rounded text-sm italic" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>I</button>
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("underline")} className="w-7 h-7 rounded text-sm underline" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>U</button>
         </div>
 
-        {/* gras / italique / souligné sur sélection */}
+        {/* alignement */}
         <div className="flex items-center gap-1">
-          <button onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("bold")} className="w-7 h-7 rounded text-sm font-bold" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>B</button>
-          <button onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("italic")} className="w-7 h-7 rounded text-sm italic" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>I</button>
-          <button onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("underline")} className="w-7 h-7 rounded text-sm underline" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>U</button>
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("justifyLeft")} className="w-7 h-7 rounded text-xs" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>⬅</button>
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("justifyCenter")} className="w-7 h-7 rounded text-xs" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>↔</button>
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("justifyRight")} className="w-7 h-7 rounded text-xs" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>➡</button>
         </div>
 
-        {/* tailles sur sélection */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Taille</span>
           {SIZES.map(s=>(
-            <button key={s.px} onMouseDown={e=>{e.preventDefault();}} onClick={()=>setSize(s.px)} title={s.l} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>{s.l}</button>
+            <button key={s.px} onMouseDown={e=>e.preventDefault()} onClick={()=>setSize(s.px)} title={s.l} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>{s.l}</button>
           ))}
         </div>
 
-        {/* couleur sur sélection */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Couleur</span>
-          {NOTE_COLORS.map(c=>(
-            <button key={c} onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("foreColor", c)} className="w-6 h-6 rounded" style={{background:c, border:"2px solid var(--border)"}}/>
-          ))}
-          <label className="w-6 h-6 rounded cursor-pointer overflow-hidden relative" style={{border:"2px solid var(--border)"}}>
-            <span className="absolute inset-0 flex items-center justify-center text-[11px]" style={{background:"conic-gradient(red,orange,yellow,green,blue,violet,red)"}}>🎨</span>
+        {/* couleur texte */}
+        <div className="flex items-center gap-1">
+          <span className="text-[9px]" style={{color:"var(--muted)"}}>A</span>
+          {NOTE_COLORS.map(c=>(<button key={c} onMouseDown={e=>e.preventDefault()} onClick={()=>exec("foreColor", c)} className="w-5 h-5 rounded" style={{background:c, border:"1px solid var(--border)"}}/>))}
+          <label className="w-5 h-5 rounded cursor-pointer overflow-hidden relative" style={{border:"1px solid var(--border)"}}>
+            <span className="absolute inset-0 flex items-center justify-center text-[9px]" style={{background:"conic-gradient(red,orange,yellow,green,blue,violet,red)"}}>🎨</span>
             <input type="color" onMouseDown={saveSel} onChange={e=>exec("foreColor", e.target.value)} className="opacity-0 w-full h-full cursor-pointer"/>
           </label>
         </div>
 
-        {/* papier */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Papier</span>
+        {/* surlignage */}
+        <div className="flex items-center gap-1">
+          <span className="text-[9px]" style={{color:"var(--muted)"}}>🖊</span>
+          {NOTE_HILITES.map(c=>(<button key={c} onMouseDown={e=>e.preventDefault()} onClick={()=>exec("hiliteColor", c)} className="w-5 h-5 rounded" style={{background:c, border:"1px solid var(--border)"}}/>))}
+          <button onMouseDown={e=>e.preventDefault()} onClick={()=>exec("hiliteColor","transparent")} title="retirer surlignage" className="w-5 h-5 rounded text-[9px] flex items-center justify-center" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--muted)"}}>⊘</button>
+        </div>
+
+        {/* widgets insérables */}
+        <div className="flex items-center gap-1">
+          <label onMouseDown={saveSel} className="px-2 h-7 rounded text-[10px] cursor-pointer flex items-center" style={{background:"var(--primary)", color:"var(--bg)"}} title="image depuis galerie">🖼️
+            <input type="file" accept="image/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) insertImage(f); e.target.value=""; }}/>
+          </label>
+          <button onMouseDown={saveSel} onClick={insertImageUrl} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}} title="image par URL">🔗</button>
+          <button onMouseDown={saveSel} onClick={insertAudio} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}} title="audio / voice claim">🎵</button>
+        </div>
+
+        {/* éléments flottants déplaçables */}
+        <div className="flex items-center gap-1">
+          <span className="text-[9px]" style={{color:"var(--muted)"}}>flottant:</span>
+          <label className="px-2 h-7 rounded text-[10px] cursor-pointer flex items-center" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}} title="image déplaçable (galerie)">🖼️↗
+            <input type="file" accept="image/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f) addImgStickerFile(f); e.target.value=""; }}/>
+          </label>
+          <button onClick={addImgStickerUrl} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}} title="image déplaçable (URL)">🔗↗</button>
+          <button onClick={addNoteSticker} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}} title="note déplaçable">📝↗</button>
+        </div>
+
+        {/* papier / fond de bloc (toujours visible) */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[9px]" style={{color:"var(--muted)"}}>📄</span>
           {Object.entries(NOTE_PAPERS).map(([k,p])=>(
-            <button key={k} onClick={()=>updatePage({paper:k})} title={p.name} className="w-6 h-6 rounded" style={{background:p.bg, border:`2px solid ${(page.paper||"white")===k?"var(--primary)":"var(--border)"}`}}/>
+            <button key={k} onClick={()=>updatePage({paper:k})} title={p.name} className="w-5 h-5 rounded" style={{background:p.bg, border:`2px solid ${(page.paper||(compact?"none":"white"))===k?"var(--primary)":"var(--border)"}`}}/>
           ))}
+          {compact && <button onClick={()=>updatePage({paper:"none"})} title="transparent" className="w-5 h-5 rounded text-[8px] flex items-center justify-center" style={{background:"var(--surface2)", border:`2px solid ${(page.paper||"none")==="none"?"var(--primary)":"var(--border)"}`, color:"var(--muted)"}}>⊘</button>}
         </div>
       </div>
 
       {/* la feuille éditable */}
+      {compact ? (
+        (page.paper && page.paper!=="none") ? (
+          <div className="rounded-2xl p-5 relative" style={{
+            background: paper.bg, backgroundImage:bgImage,
+            border:"1px solid var(--border)", minHeight:"260px",
+            clipPath: torn ? "polygon(0 1%, 4% 0, 8% 1.5%, 14% 0.3%, 20% 1.8%, 27% 0.4%, 34% 1.6%, 42% 0.3%, 50% 1.7%, 58% 0.4%, 66% 1.6%, 74% 0.3%, 82% 1.7%, 90% 0.4%, 96% 1.6%, 100% 0.5%, 100% 99%, 95% 100%, 88% 98.6%, 80% 100%, 72% 98.7%, 64% 100%, 56% 98.6%, 48% 100%, 40% 98.7%, 32% 100%, 24% 98.6%, 16% 100%, 8% 98.7%, 3% 100%, 0 99%)" : "none"
+          }}>
+            <div ref={ref} contentEditable suppressContentEditableWarning
+              onInput={commit} onKeyUp={saveSel} onMouseUp={saveSel}
+              data-ph="Écris ici... détails, anecdotes, dialogues, intentions..."
+              className="richnote w-full bg-transparent outline-none"
+              style={{ minHeight:"230px", lineHeight:"1.6", fontFamily:nf.stack, fontSize:"17px", color:paper.ink }}/>
+            {stickers.map(st=>(<FloatingSticker key={st.id} st={st} onChange={updSticker} onDelete={()=>delSticker(st.id)}/>))}
+          </div>
+        ) : (
+          <div className="relative">
+            <div ref={ref} contentEditable suppressContentEditableWarning
+              onInput={commit} onKeyUp={saveSel} onMouseUp={saveSel}
+              data-ph="Écris ici... détails, anecdotes, dialogues, intentions..."
+              className="richnote w-full bg-transparent outline-none"
+              style={{ minHeight:"300px", lineHeight:"1.6", fontFamily:nf.stack, fontSize:"17px", color:"var(--text)" }}/>
+            {stickers.map(st=>(<FloatingSticker key={st.id} st={st} onChange={updSticker} onDelete={()=>delSticker(st.id)}/>))}
+          </div>
+        )
+      ) : (
       <div className="rounded-2xl p-8 relative" style={{
         background: paper.bg, backgroundImage:bgImage,
         border:"1px solid var(--border)", boxShadow:"inset 0 0 60px rgba(0,0,0,0.06)", minHeight:"clamp(420px,60vh,640px)",
@@ -1249,6 +1368,7 @@ function RichNote({ page, updatePage }) {
           className="richnote w-full bg-transparent outline-none"
           style={{ minHeight:"400px", lineHeight:"1.5", fontFamily:nf.stack, fontSize:"21px", color:paper.ink }}/>
       </div>
+      )}
     </div>
   );
 }
@@ -3208,6 +3328,122 @@ function DRAccordionTemplate({ dr, onUpdate }) {
   );
 }
 
+/* ============================================================
+   ✦ CANVAS SECTION — papier avec zones de texte déplaçables + dessin
+   ============================================================ */
+function DraggableTextBox({ box, onChange, onDelete }) {
+  const ref = useRef(null);
+  const drag = useRef(null);
+  const start = (e) => {
+    if (box.locked) return; // verrouillé → pas de déplacement
+    if (e.target.closest(".box-content")) return;
+    const pt = e.touches ? e.touches[0] : e;
+    drag.current = { sx:pt.clientX, sy:pt.clientY, ox:box.x, oy:box.y };
+    const move = (ev) => {
+      const p = ev.touches ? ev.touches[0] : ev;
+      onChange({ ...box, x: drag.current.ox + (p.clientX-drag.current.sx), y: drag.current.oy + (p.clientY-drag.current.sy) });
+    };
+    const up = () => { window.removeEventListener("mousemove",move); window.removeEventListener("mouseup",up); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",up); };
+    window.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+    window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
+  };
+  useEffect(()=>{ if(ref.current && ref.current.innerHTML!==(box.html||"")) ref.current.innerHTML = box.html||""; }, [box.id]);
+  return (
+    <div className="absolute group" style={{ left:box.x, top:box.y, width:box.w||220, zIndex:box.z||10 }}>
+      {box.locked ? (
+        <button onClick={()=>onChange({...box, locked:false})} title="déverrouiller pour déplacer" className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] opacity-0 group-hover:opacity-100 transition z-10" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>🔒</button>
+      ) : (
+        <div onMouseDown={start} onTouchStart={start} className="flex items-center justify-between px-2 py-1 rounded-t-lg cursor-move" style={{background:"var(--primary)", opacity:0.9}}>
+          <span className="text-[9px]" style={{color:"var(--bg)"}}>⠿ déplacer</span>
+          <div className="flex items-center gap-1.5">
+            <button onClick={()=>onChange({...box, locked:true})} title="verrouiller" style={{color:"var(--bg)"}}>🔓</button>
+            <button onClick={onDelete} style={{color:"var(--bg)"}}><X size={12}/></button>
+          </div>
+        </div>
+      )}
+      <div ref={ref} contentEditable suppressContentEditableWarning
+        onInput={()=>onChange({ ...box, html: ref.current.innerHTML })}
+        className={`box-content richnote p-2 outline-none text-sm ${box.locked?"rounded-lg":"rounded-b-lg"}`}
+        style={{ background:box.bg||"rgba(255,255,255,0.92)", color:box.color||"#2a2a2a", minHeight:"50px", fontFamily:'"Caveat",cursive', fontSize:"16px", boxShadow: box.locked?"none":"0 2px 8px rgba(0,0,0,0.15)" }}/>
+    </div>
+  );
+}
+
+function DrawWidget({ box, onChange, onDelete }) {
+  const drag = useRef(null);
+  const cvRef = useRef(null);
+  const [tool, setTool] = useState("pen");
+  const [penColor, setPenColor] = useState("#7a4ae0");
+  const [penSize, setPenSize] = useState(3);
+  const draw = useRef(false);
+  const W = box.w||300, H = box.h||220;
+
+  const start = (e) => {
+    if (box.locked) return;
+    const pt = e.touches ? e.touches[0] : e;
+    drag.current = { sx:pt.clientX, sy:pt.clientY, ox:box.x, oy:box.y };
+    const move = (ev) => { const p = ev.touches?ev.touches[0]:ev; onChange({ ...box, x: drag.current.ox+(p.clientX-drag.current.sx), y: drag.current.oy+(p.clientY-drag.current.sy) }); };
+    const up = () => { window.removeEventListener("mousemove",move); window.removeEventListener("mouseup",up); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",up); };
+    window.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+    window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
+  };
+  useEffect(()=>{ const cv=cvRef.current; if(!cv) return; const ctx=cv.getContext("2d"); ctx.clearRect(0,0,cv.width,cv.height); if(box.drawing){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,cv.width,cv.height); img.src=box.drawing; } }, [box.id]);
+  const pos=(e)=>{ const r=cvRef.current.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:(p.clientX-r.left)*(cvRef.current.width/r.width), y:(p.clientY-r.top)*(cvRef.current.height/r.height)}; };
+  const sd=(e)=>{ e.preventDefault(); draw.current=true; const ctx=cvRef.current.getContext("2d"); const{x,y}=pos(e); ctx.beginPath(); ctx.moveTo(x,y); };
+  const md=(e)=>{ if(!draw.current) return; e.preventDefault(); const ctx=cvRef.current.getContext("2d"); const{x,y}=pos(e); if(tool==="eraser"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=penSize*5;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle=penColor;ctx.lineWidth=penSize;} ctx.lineCap="round";ctx.lineJoin="round"; ctx.lineTo(x,y); ctx.stroke(); };
+  const ed=()=>{ if(!draw.current) return; draw.current=false; onChange({...box, drawing:cvRef.current.toDataURL("image/png")}); };
+
+  return (
+    <div className="absolute group" style={{ left:box.x, top:box.y, width:W, zIndex:box.z||10 }}>
+      <div onMouseDown={start} onTouchStart={start} className="flex items-center justify-between px-2 py-1 rounded-t-lg" style={{background:"var(--accent)", cursor:box.locked?"default":"move"}}>
+        <span className="text-[9px]" style={{color:"#fff"}}>🎨 {box.locked?"figé":"dessin"}</span>
+        <div className="flex items-center gap-1.5">
+          {!box.locked && <button onClick={()=>setTool(tool==="pen"?"eraser":"pen")} title="crayon/gomme" style={{color:"#fff", fontSize:"11px"}}>{tool==="pen"?"✏️":"🧽"}</button>}
+          <button onClick={()=>onChange({...box, locked:!box.locked})} title="verrouiller" style={{color:"#fff"}}>{box.locked?"🔒":"🔓"}</button>
+          <button onClick={onDelete} style={{color:"#fff"}}><X size={12}/></button>
+        </div>
+      </div>
+      {!box.locked && tool==="pen" && (
+        <div className="flex items-center gap-1 px-2 py-1" style={{background:"var(--surface2)"}}>
+          {["#7a4ae0","#c0392b","#2a6a4a","#2a4a7a","#d4a017","#1a1a1e","#ff9ed8"].map(c=>(<button key={c} onClick={()=>setPenColor(c)} className="w-4 h-4 rounded-full" style={{background:c, border:penColor===c?"2px solid var(--accent)":"1px solid var(--border)"}}/>))}
+          <input type="range" min="1" max="12" value={penSize} onChange={e=>setPenSize(parseInt(e.target.value))} className="w-12"/>
+        </div>
+      )}
+      <canvas ref={cvRef} width={W*2} height={H*2}
+        onMouseDown={box.locked?undefined:sd} onMouseMove={box.locked?undefined:md} onMouseUp={ed} onMouseLeave={ed}
+        onTouchStart={box.locked?undefined:sd} onTouchMove={box.locked?undefined:md} onTouchEnd={ed}
+        className="rounded-b-lg block" style={{ width:W, height:H, background:"rgba(255,255,255,0.92)", touchAction:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:box.locked?"default":"crosshair" }}/>
+    </div>
+  );
+}
+
+function CanvasSection({ section, onUpdate }) {
+  const canvas = section.canvas || { boxes:[] };
+  const setCanvas = (patch) => onUpdate({ canvas: { ...canvas, ...patch } });
+  const addBox = () => setCanvas({ boxes:[...(canvas.boxes||[]), { id:uid(), kind:"text", x:24, y:24+(canvas.boxes?.length||0)*16, w:240, html:"", z:10+(canvas.boxes?.length||0) }] });
+  const addDraw = () => setCanvas({ boxes:[...(canvas.boxes||[]), { id:uid(), kind:"draw", x:24, y:24+(canvas.boxes?.length||0)*16, w:300, h:220, drawing:null, z:10+(canvas.boxes?.length||0) }] });
+  const updBox = (b) => setCanvas({ boxes:canvas.boxes.map(x=>x.id===b.id?b:x) });
+  const delBox = (id) => setCanvas({ boxes:canvas.boxes.filter(x=>x.id!==id) });
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <button onClick={addBox} className="px-3 py-1.5 rounded-full text-xs flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> zone de texte</button>
+        <button onClick={addDraw} className="px-3 py-1.5 rounded-full text-xs flex items-center gap-1" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>🎨 zone de dessin</button>
+        <span className="text-[10px] italic ml-auto" style={{color:"var(--muted)"}}>glisse par le bandeau · 🔒 pour figer</span>
+      </div>
+
+      <div className="relative rounded-2xl overflow-hidden" style={{ background:"var(--surface)", border:"1px solid var(--border)", minHeight:"560px" }}>
+        {(canvas.boxes||[]).length===0 && <p className="absolute inset-0 flex items-center justify-center text-sm italic" style={{color:"var(--muted)"}}>Ajoute une zone de texte ou de dessin ✦</p>}
+        {(canvas.boxes||[]).map(b=> b.kind==="draw"
+          ? <DrawWidget key={b.id} box={b} onChange={updBox} onDelete={()=>delBox(b.id)}/>
+          : <DraggableTextBox key={b.id} box={b} onChange={updBox} onDelete={()=>delBox(b.id)}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const [activeSection, setActiveSection] = useState(dr.sections[0]?.id || "general");
   const [showSet, setShowSet] = useState(false);
@@ -3354,12 +3590,14 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
                 </button>
               )}
             </div>
-            <textarea value={currentSec.content||""} onChange={e=>updateSection(currentSec.id,{content:e.target.value})}
-              placeholder="Écris tout ce que tu veux pour cette section. Détails physiques, anecdotes, dialogues, souvenirs futurs, intentions... tout ce qui rend cette DR vivante."
-              rows={16}
-              className="w-full bg-transparent outline-none leading-relaxed"
-              style={{ fontFamily:'"Caveat", cursive', fontSize:"19px", color:"var(--text)", lineHeight:"30px",
-                backgroundImage:"repeating-linear-gradient(transparent, transparent 29px, rgba(120,120,150,0.18) 30px)" }}/>
+            <RichNote
+              page={{ id: dr.id+":"+currentSec.id, html: currentSec.contentHtml, body: currentSec.content, noteFont: currentSec.noteFont, paper: currentSec.paper, stickers: currentSec.stickers }}
+              updatePage={(patch)=>{
+                const p={}; if("html" in patch) p.contentHtml=patch.html; if("noteFont" in patch) p.noteFont=patch.noteFont; if("_lastPick" in patch) p._lastPick=patch._lastPick; if("paper" in patch) p.paper=patch.paper; if("stickers" in patch) p.stickers=patch.stickers;
+                updateSection(currentSec.id, p);
+              }}
+              compact
+            />
           </>)}
         </div>
       </div>
