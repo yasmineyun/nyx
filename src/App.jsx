@@ -1682,6 +1682,7 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const open = items.find(i=>i.id===openId);
+  useEffect(()=>{ if(openId) window.scrollTo({top:0, behavior:"smooth"}); }, [openId]);
 
   const addFromLink = async () => {
     if (!linkInput.trim()) return;
@@ -2830,12 +2831,12 @@ const SHIFT_SYMPTOMS = ["Vibrations","Flottement","Voix/sons","Engourdissement",
 const SHIFT_MOODS = ["😊 sereine","😴 fatiguée","😢 triste","😰 stressée","🤩 excitée","😐 neutre"];
 function ShiftAnalyser({ log, setLog, moon }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ method:"", symptom:"", mood:"", shadowWork:false, aligned:50 });
+  const [form, setForm] = useState({ method:"", symptom:"", mood:"", shadowWork:false, aligned:50, signs:"", timeSync:"" });
   const moonName = moon?.name || "—";
 
   const addEntry = () => {
     setLog([{ id:uid(), date:new Date().toISOString().slice(0,10), ...form, moonPhase:moonName, moonIdx:moon?.idx??null }, ...log]);
-    setForm({ method:"", symptom:"", mood:"", shadowWork:false, aligned:50 });
+    setForm({ method:"", symptom:"", mood:"", shadowWork:false, aligned:50, signs:"", timeSync:"" });
     setOpen(false);
   };
 
@@ -2885,6 +2886,14 @@ function ShiftAnalyser({ log, setLog, moon }) {
             <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Alignement ressenti : <b style={{color:"var(--accent)"}}>{form.aligned}%</b></p>
             <input type="range" min="0" max="100" value={form.aligned} onChange={e=>setForm({...form,aligned:parseInt(e.target.value)})} className="w-full"/>
           </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>✨ Signes de proximité (mini-shifting)</p>
+            <textarea value={form.signs} onChange={e=>setForm({...form,signs:e.target.value})} rows={2} placeholder="odeur de feu de bois, chuchotement, détachement corporel, flash d'image..." className="w-full bg-transparent outline-none text-xs" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>⏰ Time Sync (que fait ton perso DR à cet instant ?)</p>
+            <input value={form.timeSync} onChange={e=>setForm({...form,timeSync:e.target.value})} placeholder="ex: il est 7h à Poudlard, mon perso s'éveille..." className="w-full bg-transparent outline-none text-xs" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
+          </div>
           <p className="text-[10px]" style={{color:"var(--muted)"}}>🌙 Phase auto : {moonName}</p>
           <button onClick={addEntry} className="w-full py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ enregistrer cette nuit</button>
         </div>
@@ -2910,6 +2919,22 @@ function ShiftAnalyser({ log, setLog, moon }) {
           {log.slice(0,20).reverse().map(e=>(
             <div key={e.id} title={`${e.date} · ${e.aligned}%`} className="flex-1 rounded-t" style={{height:`${Math.max(8,e.aligned)}%`, background:"var(--primary)", opacity:0.4+e.aligned/200}}/>
           ))}
+        </div>
+      )}
+
+      {/* registre des signes de proximité */}
+      {log.some(e=>e.signs||e.timeSync) && (
+        <div className="mt-4">
+          <p className="text-xs font-bold mb-2" style={{color:"var(--accent)"}}>✨ Mes signes de proximité</p>
+          <div className="space-y-2">
+            {log.filter(e=>e.signs||e.timeSync).slice(0,8).map(e=>(
+              <div key={e.id} className="rounded-lg p-2 text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+                <span className="text-[10px]" style={{color:"var(--muted)"}}>{e.date} · {e.moonPhase} · {e.aligned}%</span>
+                {e.signs && <p style={{color:"var(--text)"}}>✨ {e.signs}</p>}
+                {e.timeSync && <p className="italic" style={{color:"var(--muted)"}}>⏰ {e.timeSync}</p>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -3425,7 +3450,9 @@ function DRSocialGraph({ dr, onUpdate }) {
       {/* GALERIE DE CARTES */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {people.map(p=>{
-          const lvl = REL_LEVELS.find(l=>l.k===p.level)||REL_LEVELS[2];
+          const lvl = p.level?.startsWith("custom:")
+            ? (p.customRoles?.[parseInt(p.level.split(":")[1])] ? {...p.customRoles[parseInt(p.level.split(":")[1])], emoji:"✦"} : REL_LEVELS[2])
+            : (REL_LEVELS.find(l=>l.k===p.level)||REL_LEVELS[2]);
           return (
           <button key={p.id} onClick={()=>setOpenId(p.id)} className="group relative rounded-2xl overflow-hidden text-left transition hover:scale-[1.03]" style={{border:`2px solid ${lvl.color}`, background:"var(--surface2)", boxShadow:`0 4px 16px ${lvl.color}33`}}>
             {/* visage */}
@@ -3447,7 +3474,9 @@ function DRSocialGraph({ dr, onUpdate }) {
 
       {/* PROFIL DÉTAILLÉ (plein écran) */}
       {cur && (()=>{
-        const lvl = REL_LEVELS.find(l=>l.k===cur.level)||REL_LEVELS[2];
+        const lvl = cur.level?.startsWith("custom:")
+          ? (cur.customRoles?.[parseInt(cur.level.split(":")[1])] ? {...cur.customRoles[parseInt(cur.level.split(":")[1])], emoji:"✦"} : REL_LEVELS[2])
+          : (REL_LEVELS.find(l=>l.k===cur.level)||REL_LEVELS[2]);
         const photos = cur.photos||[];
         return (
         <div className="fixed inset-0 z-[80] overflow-y-auto animate-fade-up" style={{background:"rgba(10,8,20,0.85)", backdropFilter:"blur(6px)"}} onClick={()=>setOpenId(null)}>
@@ -3476,20 +3505,52 @@ function DRSocialGraph({ dr, onUpdate }) {
                     <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Rôle pour moi</label>
                     <select value={cur.level} onChange={e=>upd(cur.id,{level:e.target.value})} className="w-full mt-1 text-xs px-2 py-2 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}>
                       {REL_LEVELS.map(l=>(<option key={l.k} value={l.k} style={{background:"var(--bg2)"}}>{l.emoji} {l.l}</option>))}
+                      {(cur.customRoles||[]).map((r,i)=>(<option key={"c"+i} value={"custom:"+i} style={{background:"var(--bg2)"}}>✦ {r.l}</option>))}
                     </select>
                   </div>
                 </div>
+
+                {/* rôle personnalisé */}
+                <div className="rounded-xl p-3" style={{background:"var(--surface)", border:"1px dashed var(--accent)"}}>
+                  <p className="text-[10px] uppercase tracking-widest mb-2" style={{color:"var(--muted)"}}>✦ Créer un rôle personnalisé</p>
+                  {(cur.customRoles||[]).map((r,i)=>(
+                    <div key={i} className="flex items-center gap-2 mb-1">
+                      <input type="color" value={r.color} onChange={e=>{ const cr=[...(cur.customRoles||[])]; cr[i]={...cr[i],color:e.target.value}; upd(cur.id,{customRoles:cr}); }} className="w-7 h-7 rounded cursor-pointer flex-shrink-0" style={{border:"1px solid var(--border)"}}/>
+                      <input value={r.l} onChange={e=>{ const cr=[...(cur.customRoles||[])]; cr[i]={...cr[i],l:e.target.value}; upd(cur.id,{customRoles:cr}); }} placeholder="nom du rôle (ex: mon âme jumelle)" className="flex-1 bg-transparent outline-none text-xs" style={{color:"var(--text)", borderBottom:"1px solid var(--border)"}}/>
+                      <button onClick={()=>{ const cr=(cur.customRoles||[]).filter((_,j)=>j!==i); upd(cur.id,{customRoles:cr, level: cur.level==="custom:"+i?"ami":cur.level}); }} style={{color:"var(--muted)"}}><X size={12}/></button>
+                    </div>
+                  ))}
+                  <button onClick={()=>{ const cr=[...(cur.customRoles||[]), {l:"", color:"#b088e0"}]; upd(cur.id,{customRoles:cr}); }} className="text-[11px] flex items-center gap-1 mt-1" style={{color:"var(--accent)"}}><Plus size={11}/> nouveau rôle + couleur</button>
+                  <p className="text-[9px] italic mt-1" style={{color:"var(--muted)"}}>Une fois créé, sélectionne-le dans "Rôle pour moi" ci-dessus.</p>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <span className="text-[10px]" style={{color:"var(--muted)"}}>affinité avec moi</span>
                   <input type="range" min="0" max="100" value={cur.affinity} onChange={e=>upd(cur.id,{affinity:parseInt(e.target.value)})} className="flex-1"/>
                   <span className="text-xs" style={{color:lvl.color}}>{cur.affinity}%</span>
                 </div>
 
+                {/* Memory Catalyst */}
+                <div className="rounded-xl p-3" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+                  <p className="text-xs font-bold mb-1" style={{color:"var(--accent)"}}>🧠 Memory Catalyst — notre passé commun</p>
+                  <p className="text-[10px] italic mb-2" style={{color:"var(--muted)"}}>Vos souvenirs vécus ensemble avant ton arrivée (ton cerveau a besoin de passé pour stabiliser la réalité)</p>
+                  {(cur.memories && cur.memories.length ? cur.memories : ["","",""]).map((mem,i)=>(
+                    <div key={i} className="flex items-center gap-2 mb-1.5 group/m">
+                      <span style={{color:"var(--accent)", fontSize:"11px"}}>✦</span>
+                      <input value={mem} onChange={e=>{ const base=(cur.memories&&cur.memories.length?cur.memories:["","",""]); const m=[...base]; m[i]=e.target.value; upd(cur.id,{memories:m}); }} placeholder={`souvenir ${i+1}...`} className="flex-1 bg-transparent outline-none text-sm" style={{borderBottom:"1px solid var(--border)", color:"var(--text)", padding:"3px 0"}}/>
+                      <button onClick={()=>{ const base=(cur.memories&&cur.memories.length?cur.memories:["","",""]); upd(cur.id,{memories:base.filter((_,j)=>j!==i)}); }} className="opacity-0 group-hover/m:opacity-100" style={{color:"var(--muted)"}}><X size={12}/></button>
+                    </div>
+                  ))}
+                  <button onClick={()=>{ const base=(cur.memories&&cur.memories.length?cur.memories:["","",""]); upd(cur.id,{memories:[...base,""]}); }} className="text-[11px] flex items-center gap-1 mt-1" style={{color:"var(--accent)"}}><Plus size={11}/> ajouter un souvenir</button>
+                </div>
+
                 {/* champs détaillés */}
                 {[
                   {k:"background", label:"📖 Background & histoire", ph:"D'où vient cette personne, sa vie, son passé..."},
                   {k:"personality", label:"✨ Traits de caractère", ph:"Sa personnalité, ses manies, ce qui la rend unique..."},
-                  {k:"relation", label:"💗 Notre relation", ph:"Comment on s'est rencontrés, ce qu'on vit, notre dynamique..."},
+                  {k:"vibe", label:"💫 Vibe Check émotionnel", ph:"Ce que tu ressens physiquement/mentalement à côté d'elle (ex: à côté de Luna mon anxiété disparaît)..."},
+                  {k:"integration", label:"🛡️ Protocole d'intégration", ph:"S'ils remarquent que tu as changé, qu'est-ce qu'ils se disent ? (ex: elle met ça sur le stress des exams)..."},
+                  {k:"relation", label:"💗 Notre relation", ph:"Comment on s'est rencontrés, notre dynamique..."},
                   {k:"scenarios", label:"🎬 Scénarios clés ensemble", ph:"Les moments importants qu'on va vivre là-bas..."},
                 ].map(f=>(
                   <div key={f.k}>
