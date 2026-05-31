@@ -1676,14 +1676,83 @@ async function fetchFromLink(url) {
   return { ok:false };
 }
 
+// Recherche par titre via API gratuites ouvertes (sans clé). Renvoie une liste de résultats.
+async function searchByTitle(query, kind="all") {
+  const q = encodeURIComponent(query.trim());
+  if (!q) return [];
+  const results = [];
+  // 1) Anime/manga — Jikan (MyAnimeList)
+  if (kind==="all" || kind==="anime" || kind==="manga") {
+    try {
+      const type = kind==="manga" ? "manga" : "anime";
+      const r = await fetch(`https://api.jikan.moe/v4/${type}?q=${q}&limit=6&sfw`);
+      if (r.ok) { const d = await r.json();
+        (d.data||[]).forEach(a=>results.push({
+          title:a.title, image:a.images?.jpg?.image_url||"",
+          note:(a.synopsis||"").slice(0,300), type:type==="manga"?"manga":"anime",
+          epTotal:a.episodes||a.chapters||"", source:"MyAnimeList"
+        }));
+      }
+    } catch(e){}
+  }
+  // 2) Films/séries/musique — iTunes Search
+  if (kind==="all" || kind==="film" || kind==="serie" || kind==="kdrama") {
+    try {
+      const media = "all";
+      const r = await fetch(`https://itunes.apple.com/search?term=${q}&media=${media}&limit=6`);
+      if (r.ok) { const d = await r.json();
+        (d.results||[]).forEach(m=>{
+          if(!m.trackName && !m.collectionName) return;
+          results.push({
+            title:m.trackName||m.collectionName,
+            image:(m.artworkUrl100||"").replace("100x100","400x400"),
+            note:(m.longDescription||m.shortDescription||m.collectionName||"").slice(0,300),
+            type:m.kind==="feature-movie"?"film":m.kind==="tv-episode"?"série":m.primaryGenreName||"film",
+            source:"iTunes"
+          });
+        });
+      }
+    } catch(e){}
+  }
+  // 3) Livres — OpenLibrary
+  if (kind==="all" || kind==="livre") {
+    try {
+      const r = await fetch(`https://openlibrary.org/search.json?q=${q}&limit=6`);
+      if (r.ok) { const d = await r.json();
+        (d.docs||[]).slice(0,6).forEach(b=>results.push({
+          title:b.title + (b.author_name?` — ${b.author_name[0]}`:""),
+          image:b.cover_i?`https://covers.openlibrary.org/b/id/${b.cover_i}-L.jpg`:"",
+          note:b.first_sentence?(Array.isArray(b.first_sentence)?b.first_sentence[0]:b.first_sentence):"",
+          type:"livre", source:"OpenLibrary"
+        }));
+      }
+    } catch(e){}
+  }
+  return results.filter(r=>r.title);
+}
+
 function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }) {
   const [openId, setOpenId] = useState(null);
   const [linkInput, setLinkInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [zoom, setZoom] = useState(null); // "library" | "tv" | null
+  const [searchQ, setSearchQ] = useState("");
+  const [searchRes, setSearchRes] = useState(null);
+  const [searching, setSearching] = useState(false);
   const open = items.find(i=>i.id===openId);
   useEffect(()=>{ if(openId) window.scrollTo({top:0, behavior:"smooth"}); }, [openId]);
+
+  const runSearch = async (kind="all") => {
+    if(!searchQ.trim()) return;
+    setSearching(true); setSearchRes(null);
+    const r = await searchByTitle(searchQ, kind);
+    setSearching(false); setSearchRes(r);
+  };
+  const addFromResult = (res) => {
+    const it = {id:uid(), created:new Date().toISOString().slice(0,10), title:res.title, type:res.type||"", status:"à voir", rating:"", note:res.note||"", image:res.image||"", link:"", myReview:"", epTotal:res.epTotal||""};
+    setItems([it, ...items]); setSearchRes(null); setSearchQ(""); setOpenId(it.id);
+  };
 
   const addFromLink = async () => {
     if (!linkInput.trim()) return;
@@ -1796,10 +1865,30 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
       <button onClick={()=>setZoom(null)} className="mb-4 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour à la pièce</button>
       <h3 className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📚 Ma bibliothèque</h3>
       <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Touche un livre pour l'ouvrir</p>
+      <div className="rounded-2xl p-3 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+        <p className="text-[11px] mb-2" style={{color:"var(--accent)"}}>🔎 Cherche un livre par titre</p>
+        <div className="flex gap-2">
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&runSearch("livre")} placeholder="ex: L'Assassin Royal, Mistborn..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <button onClick={()=>runSearch("livre")} disabled={searching} className="px-4 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{searching?"⏳":"🔎"}</button>
+        </div>
+        {searchRes && (
+          <div className="mt-3">
+            {searchRes.length===0 && <p className="text-xs italic" style={{color:"var(--muted)"}}>Aucun résultat. Essaie un autre titre, ou ajoute à la main avec +.</p>}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {searchRes.map((r,i)=>(
+                <button key={i} onClick={()=>addFromResult(r)} className="text-left rounded-xl overflow-hidden transition hover:scale-105" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+                  <div style={{aspectRatio:"2/3", background: r.image?`url(${r.image}) center/cover`:"var(--surface)"}}>{!r.image && <div className="w-full h-full flex items-center justify-center text-2xl">📖</div>}</div>
+                  <div className="p-1.5"><p className="text-[10px] leading-tight line-clamp-2" style={{color:"var(--text)"}}>{r.title}</p></div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <div className="flex gap-2 mb-4">
-        <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()} placeholder="coller un lien Wikipedia du livre..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
-        <button onClick={addFromLink} disabled={loading} className="px-3 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"⏳":"✦"}</button>
-        <button onClick={()=>{ addBlank(); }} className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/></button>
+        <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()} placeholder="ou coller un lien Wikipedia..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        <button onClick={addFromLink} disabled={loading} className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>{loading?"⏳":"✦"}</button>
+        <button onClick={()=>{ addBlank(); }} title="ajouter à la main" className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/></button>
       </div>
       <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-3">
         {books.map(i=>(
@@ -1821,10 +1910,35 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
       <button onClick={()=>setZoom(null)} className="mb-4 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour à la pièce</button>
       <h3 className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📺 Mon espace visionnage</h3>
       <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Animes · Films · Séries · K-Dramas</p>
+      {/* recherche par titre */}
+      <div className="rounded-2xl p-3 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+        <p className="text-[11px] mb-2" style={{color:"var(--accent)"}}>🔎 Cherche par titre (anime, film, série, k-drama...)</p>
+        <div className="flex gap-2">
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&runSearch("all")} placeholder="ex: Jujutsu Kaisen, Goblin, Your Name..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <button onClick={()=>runSearch("all")} disabled={searching} className="px-4 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{searching?"⏳":"🔎"}</button>
+        </div>
+        {searchRes && (
+          <div className="mt-3">
+            {searchRes.length===0 && <p className="text-xs italic" style={{color:"var(--muted)"}}>Aucun résultat. Essaie un autre titre, ou ajoute à la main avec +.</p>}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {searchRes.map((r,i)=>(
+                <button key={i} onClick={()=>addFromResult(r)} className="text-left rounded-xl overflow-hidden transition hover:scale-105" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+                  <div style={{aspectRatio:"3/4", background: r.image?`url(${r.image}) center/cover`:"var(--surface)"}}>{!r.image && <div className="w-full h-full flex items-center justify-center text-2xl">🎬</div>}</div>
+                  <div className="p-1.5">
+                    <p className="text-[10px] leading-tight line-clamp-2" style={{color:"var(--text)"}}>{r.title}</p>
+                    <p className="text-[8px]" style={{color:"var(--muted)"}}>{r.source}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {/* lien wiki + manuel */}
       <div className="flex gap-2 mb-4">
-        <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()} placeholder="coller un lien Wikipedia..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
-        <button onClick={addFromLink} disabled={loading} className="px-3 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"⏳":"✦"}</button>
-        <button onClick={()=>{ addBlank(); }} className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/></button>
+        <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()} placeholder="ou coller un lien Wikipedia..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        <button onClick={addFromLink} disabled={loading} className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>{loading?"⏳":"✦"}</button>
+        <button onClick={()=>{ addBlank(); }} title="ajouter à la main" className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/></button>
       </div>
       {msg && <p className="text-xs mb-3" style={{color:"var(--accent)"}}>{msg}</p>}
 
