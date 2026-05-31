@@ -6181,8 +6181,9 @@ export default function App() {
   const effectiveFont = subOv.font || secOv.font || font;
   const activeBackdropRaw = subOv.backdrop ?? secOv.backdrop ?? effectiveTheme.backdrop;
   const activeBackdrop = (activeBackdropRaw && customBackdrops[activeBackdropRaw]) ? customBackdrops[activeBackdropRaw] : activeBackdropRaw;
-  const bgImage = subOv.bgImage ?? secOv.bgImage ?? null;
-  const bgOpacity = subOv.bgOpacity ?? secOv.bgOpacity ?? 0.5;
+  // image de fond STRICTEMENT par sous-section (jamais héritée de la section)
+  const bgImage = subOv.bgImage ?? null;
+  const bgOpacity = subOv.bgOpacity ?? 0.5;
   const mergedColors = { ...(secOv.colors||{}), ...(subOv.colors||{}) };
 
   useEffect(()=>{
