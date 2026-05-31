@@ -950,9 +950,20 @@ function Widget({ widget, onUpdate, onDelete }) {
             className="w-full bg-transparent outline-none resize-none" style={{color:"var(--text)"}}/>)}
         {(widget.type==="gif"||widget.type==="image") && (<>
           {widget.content ? <img src={widget.content} alt="" className="w-full rounded-xl object-cover" style={{border:"3px solid #fff"}}/> :
-            <div className="aspect-video rounded-xl flex items-center justify-center text-xs" style={{background:"rgba(255,255,255,0.06)", color:"var(--muted)"}}>colle une URL ↓</div>}
+            <div className="aspect-video rounded-xl flex items-center justify-center text-xs" style={{background:"rgba(255,255,255,0.06)", color:"var(--muted)"}}>colle une URL ou choisis ↓</div>}
           <input value={widget.content||""} onChange={e=>onUpdate({...widget, content:e.target.value})} placeholder={widget.type==="gif"?"URL du gif":"URL de l'image"}
-            className="mt-2 w-full bg-transparent text-xs outline-none border-b py-1" style={{borderColor:"var(--border)", color:"var(--text)"}}/></>)}
+            className="mt-2 w-full bg-transparent text-xs outline-none border-b py-1" style={{borderColor:"var(--border)", color:"var(--text)"}}/>
+          {widget.type==="image" && (
+            <label className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] cursor-pointer" style={{background:"var(--primary)", color:"var(--bg)"}}>
+              🖼️ depuis ma galerie
+              <input type="file" accept="image/*" className="hidden" onChange={(e)=>{
+                const f=e.target.files?.[0]; if(!f) return;
+                const r=new FileReader();
+                r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1000; let{width:w,height:h}=img; if(w>max||h>max){const s=max/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);} const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h); onUpdate({...widget, content:c.toDataURL("image/jpeg",0.8)}); }; img.onerror=()=>onUpdate({...widget, content:r.result}); img.src=r.result; };
+                r.readAsDataURL(f); e.target.value="";
+              }}/>
+            </label>
+          )}</>)}
         {widget.type==="playlist" && (<>
           {widget.content?.includes("spotify") ?
             <iframe title="sp" src={widget.content.replace("/track/","/embed/track/").replace("/playlist/","/embed/playlist/").replace("/album/","/embed/album/")} width="100%" height="152" frameBorder="0" allow="encrypted-media" className="rounded-xl"/> :
@@ -1075,6 +1086,168 @@ const HEALING_QUESTIONS = [
   "Quelle peur t'empêche d'avancer, et qu'y a-t-il derrière elle ?",
 ];
 
+/* ============================================================
+   ✦ RICHNOTE — note avec formatage par sélection (taille, couleur, gras...)
+   ============================================================ */
+const NOTE_PAPERS = {
+  white:   { name:"Blanc",     bg:"#fdfcf8", ink:"#2a2a2a", lines:"rgba(120,120,150,0.18)" },
+  cream:   { name:"Crème",     bg:"#f5ecd8", ink:"#4a3a28", lines:"rgba(150,120,80,0.2)" },
+  yellow:  { name:"Jaune",     bg:"#fdf3c0", ink:"#4a3a10", lines:"rgba(150,130,60,0.25)" },
+  pink:    { name:"Rose",      bg:"#fbe0ec", ink:"#7a2a4a", lines:"rgba(180,100,140,0.2)" },
+  black:   { name:"Noir",      bg:"#1a1a1e", ink:"#f0ece0", lines:"rgba(200,200,220,0.12)" },
+  night:   { name:"Nuit",      bg:"linear-gradient(180deg,#16162e,#0d0d20)", ink:"#d8d8f5", lines:"rgba(160,160,220,0.15)" },
+  kraft:   { name:"Kraft",     bg:"#c9a878", ink:"#3a2a18", lines:"rgba(80,60,40,0.25)" },
+  manuscript:{ name:"Manuscrit",bg:"#e8dcc0", ink:"#3a2818", lines:"rgba(120,90,50,0.3)" },
+  torn:    { name:"Déchiré",   bg:"#f0e8d8", ink:"#3a3228", lines:"rgba(120,110,90,0.2)" },
+  grid:    { name:"Quadrillé", bg:"#f8f8f4", ink:"#2a2a3a", lines:"rgba(120,140,180,0.2)", grid:true },
+};
+const NOTE_FONTS = {
+  caveat:{name:"Manuscrit doux",stack:'"Caveat",cursive'},
+  dancing:{name:"Élégant",stack:'"Dancing Script",cursive'},
+  greatvibes:{name:"Calligraphie",stack:'"Great Vibes",cursive'},
+  parisienne:{name:"Parisienne",stack:'"Parisienne",cursive'},
+  sacramento:{name:"Délicat",stack:'"Sacramento",cursive'},
+  pinyon:{name:"Royal",stack:'"Pinyon Script",cursive'},
+  homemade:{name:"Crayon",stack:'"Homemade Apple",cursive'},
+  shadows:{name:"Feutre",stack:'"Shadows Into Light",cursive'},
+  amatic:{name:"Fin & haut",stack:'"Amatic SC",cursive'},
+  playfair:{name:"Magazine",stack:'"Playfair Display",serif'},
+  cormorant:{name:"Classique",stack:'"Cormorant Garamond",serif'},
+  italiana:{name:"Couture",stack:'"Italiana",serif'},
+  marcellus:{name:"Antique",stack:'"Marcellus",serif'},
+  fraunces:{name:"Vintage",stack:'"Fraunces",serif'},
+  cinzel:{name:"Gravé",stack:'"Cinzel",serif'},
+  gothic:{name:"Gothique",stack:'"UnifrakturCook",cursive'},
+  spacemono:{name:"Rétro mono",stack:'"Space Mono",monospace'},
+  pixel:{name:"Pixel Y2K",stack:'"Pixelify Sans",sans-serif'},
+  sans:{name:"Net",stack:'system-ui,sans-serif'},
+};
+const NOTE_COLORS = ["#2a2a2a","#7a2a4a","#2a4a7a","#2a6a4a","#8a5a10","#6a2a8a","#c0392b","#d4a017","#f0ece0","#ff9ed8"];
+
+function RichNote({ page, updatePage }) {
+  const ref = useRef(null);
+  const savedSel = useRef(null);
+  const paper = NOTE_PAPERS[page.paper||"white"] || NOTE_PAPERS.white;
+  const nf = NOTE_FONTS[page.noteFont||"caveat"] || NOTE_FONTS.caveat;
+  const bgImage = paper.grid
+    ? `repeating-linear-gradient(${paper.lines} 0 1px, transparent 1px 28px), repeating-linear-gradient(90deg, ${paper.lines} 0 1px, transparent 1px 28px)`
+    : `repeating-linear-gradient(transparent, transparent 31px, ${paper.lines} 32px)`;
+  const torn = page.paper==="torn";
+
+  // init contenu une seule fois
+  useEffect(()=>{
+    if (ref.current && ref.current.innerHTML !== (page.html||"")) {
+      ref.current.innerHTML = page.html || (page.body ? page.body.replace(/\n/g,"<br>") : "");
+    }
+  }, [page.id]);
+
+  const saveSel = () => { const s=window.getSelection(); if(s&&s.rangeCount&&ref.current?.contains(s.anchorNode)) savedSel.current=s.getRangeAt(0).cloneRange(); };
+  // garantit une sélection valide : garde la sélection LIVE si présente, sinon restaure la sauvegardée
+  const ensureSel = () => {
+    const s = window.getSelection();
+    if (s && s.rangeCount && !s.isCollapsed && ref.current?.contains(s.anchorNode)) return s; // sélection réelle active
+    if (savedSel.current) { try { s.removeAllRanges(); s.addRange(savedSel.current); } catch {} }
+    return window.getSelection();
+  };
+  const commit = () => { if(ref.current) updatePage({ html: ref.current.innerHTML }); };
+  const exec = (cmd, val=null) => {
+    const sel = ensureSel();
+    if (!sel || sel.rangeCount===0) return;
+    document.execCommand("styleWithCSS", false, true);
+    document.execCommand(cmd, false, val);
+    commit();
+  };
+  // enrobe la sélection dans un span avec un style, en effaçant l'ancienne valeur de cette propriété
+  const wrapStyle = (styleProp, value, extra={}) => {
+    const sel = ensureSel();
+    if (!sel || sel.rangeCount===0 || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const frag = range.extractContents();
+    if (frag.querySelectorAll) {
+      frag.querySelectorAll("[style]").forEach(el=>{ el.style[styleProp]=""; if(extra.also) el.style[extra.also]=""; if(!el.getAttribute("style")) el.removeAttribute("style"); });
+    }
+    const span = document.createElement("span");
+    span.style[styleProp] = value;
+    if (extra.also) span.style[extra.also] = extra.alsoVal;
+    span.appendChild(frag);
+    range.insertNode(span);
+    const nr = document.createRange(); nr.selectNodeContents(span);
+    sel.removeAllRanges(); sel.addRange(nr); savedSel.current = nr.cloneRange();
+    commit();
+  };
+  const setSize = (px) => wrapStyle("fontSize", px+"px", {also:"lineHeight", alsoVal:"1.4"});
+  const setFontFam = (stack) => wrapStyle("fontFamily", stack);
+
+  const SIZES = [{l:"Titre",px:34},{l:"S-titre",px:27},{l:"Normal",px:21},{l:"Petit",px:17},{l:"Mini",px:14}];
+
+  return (
+    <div>
+      {/* barre d'outils */}
+      <div className="flex flex-wrap items-center gap-3 mb-3 p-3 rounded-xl" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+        <p className="w-full text-[10px] italic" style={{color:"var(--muted)"}}>✦ Sélectionne du texte, puis applique taille / couleur / style — seul le passage choisi change.</p>
+
+        {/* police globale */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Police</span>
+          <select defaultValue="" onMouseDown={saveSel} onChange={e=>{ const k=e.target.value; if(!k) return; if(k==="_all"){ updatePage({noteFont: page._lastPick||"caveat"}); } else { setFontFam(NOTE_FONTS[k].stack); updatePage({_lastPick:k}); } e.target.value=""; }} className="text-xs px-2 py-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", maxWidth:"140px"}}>
+            <option value="" style={{background:"var(--bg2)"}}>✦ police…</option>
+            {Object.entries(NOTE_FONTS).map(([k,f])=>(<option key={k} value={k} style={{background:"var(--bg2)", fontFamily:f.stack}}>{f.name}</option>))}
+            <option value="_all" style={{background:"var(--bg2)"}}>— appliquer à toute la note —</option>
+          </select>
+        </div>
+
+        {/* gras / italique / souligné sur sélection */}
+        <div className="flex items-center gap-1">
+          <button onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("bold")} className="w-7 h-7 rounded text-sm font-bold" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>B</button>
+          <button onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("italic")} className="w-7 h-7 rounded text-sm italic" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>I</button>
+          <button onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("underline")} className="w-7 h-7 rounded text-sm underline" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>U</button>
+        </div>
+
+        {/* tailles sur sélection */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Taille</span>
+          {SIZES.map(s=>(
+            <button key={s.px} onMouseDown={e=>{e.preventDefault();}} onClick={()=>setSize(s.px)} title={s.l} className="px-2 h-7 rounded text-[10px]" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}>{s.l}</button>
+          ))}
+        </div>
+
+        {/* couleur sur sélection */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Couleur</span>
+          {NOTE_COLORS.map(c=>(
+            <button key={c} onMouseDown={e=>{e.preventDefault();}} onClick={()=>exec("foreColor", c)} className="w-6 h-6 rounded" style={{background:c, border:"2px solid var(--border)"}}/>
+          ))}
+          <label className="w-6 h-6 rounded cursor-pointer overflow-hidden relative" style={{border:"2px solid var(--border)"}}>
+            <span className="absolute inset-0 flex items-center justify-center text-[11px]" style={{background:"conic-gradient(red,orange,yellow,green,blue,violet,red)"}}>🎨</span>
+            <input type="color" onMouseDown={saveSel} onChange={e=>exec("foreColor", e.target.value)} className="opacity-0 w-full h-full cursor-pointer"/>
+          </label>
+        </div>
+
+        {/* papier */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Papier</span>
+          {Object.entries(NOTE_PAPERS).map(([k,p])=>(
+            <button key={k} onClick={()=>updatePage({paper:k})} title={p.name} className="w-6 h-6 rounded" style={{background:p.bg, border:`2px solid ${(page.paper||"white")===k?"var(--primary)":"var(--border)"}`}}/>
+          ))}
+        </div>
+      </div>
+
+      {/* la feuille éditable */}
+      <div className="rounded-2xl p-8 relative" style={{
+        background: paper.bg, backgroundImage:bgImage,
+        border:"1px solid var(--border)", boxShadow:"inset 0 0 60px rgba(0,0,0,0.06)", minHeight:"clamp(420px,60vh,640px)",
+        clipPath: torn ? "polygon(0 1%, 4% 0, 8% 1.5%, 14% 0.3%, 20% 1.8%, 27% 0.4%, 34% 1.6%, 42% 0.3%, 50% 1.7%, 58% 0.4%, 66% 1.6%, 74% 0.3%, 82% 1.7%, 90% 0.4%, 96% 1.6%, 100% 0.5%, 100% 99%, 95% 100%, 88% 98.6%, 80% 100%, 72% 98.7%, 64% 100%, 56% 98.6%, 48% 100%, 40% 98.7%, 32% 100%, 24% 98.6%, 16% 100%, 8% 98.7%, 3% 100%, 0 99%)" : "none"
+      }}>
+        <div ref={ref} contentEditable suppressContentEditableWarning
+          onInput={commit} onKeyUp={saveSel} onMouseUp={saveSel}
+          data-ph="Cher journal,&#10;Aujourd'hui..."
+          className="richnote w-full bg-transparent outline-none"
+          style={{ minHeight:"400px", lineHeight:"1.5", fontFamily:nf.stack, fontSize:"21px", color:paper.ink }}/>
+      </div>
+    </div>
+  );
+}
+
 function ScrapbookEditor({ pages, setPages }) {
   const [activePage, setActivePage] = useState(pages[0]?.id || null);
   const [choosing, setChoosing] = useState(false); // affiche le choix de format
@@ -1182,18 +1355,65 @@ function ScrapbookEditor({ pages, setPages }) {
         </>)}
 
         {/* FORMAT NOTE */}
-        {current.format==="note" && (
-          <div className="rounded-2xl p-8" style={{
-            background:`var(--paper)`,
-            backgroundImage:`repeating-linear-gradient(transparent, transparent 31px, rgba(120,120,150,0.18) 32px)`,
-            border:"1px solid var(--border)", boxShadow:"inset 0 0 60px rgba(0,0,0,0.05)", minHeight:"clamp(420px,60vh,640px)"
-          }}>
-            <textarea value={current.body||""} onChange={e=>updatePage({body:e.target.value})}
-              placeholder="Cher journal,&#10;&#10;Aujourd'hui..."
-              className="w-full bg-transparent outline-none resize-none"
-              style={{ minHeight:"500px", lineHeight:"32px", fontFamily:'"Caveat", cursive', fontSize:"22px", color:"var(--ink)" }}/>
+        {current.format==="note" && (()=>{
+          const paper = NOTE_PAPERS[current.paper||"white"] || NOTE_PAPERS.white;
+          const addImg = () => updatePage({ images:[...(current.images||[]), ""] });
+          const updImg = (i,v) => updatePage({ images:(current.images||[]).map((x,j)=>j===i?v:x) });
+          const delImg = (i) => updatePage({ images:(current.images||[]).filter((_,j)=>j!==i) });
+          const addFromGallery = (e) => {
+            const files = Array.from(e.target.files||[]);
+            if (!files.length) return;
+            const compress = (file) => new Promise(res=>{
+              const r = new FileReader();
+              r.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                  const max = 900; let {width:w, height:h} = img;
+                  if (w>max || h>max) { const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+                  const c = document.createElement("canvas"); c.width=w; c.height=h;
+                  c.getContext("2d").drawImage(img,0,0,w,h);
+                  res(c.toDataURL("image/jpeg", 0.78));
+                };
+                img.onerror = () => res(r.result);
+                img.src = r.result;
+              };
+              r.readAsDataURL(file);
+            });
+            Promise.all(files.map(compress)).then(imgs=>{
+              updatePage({ images:[...(current.images||[]), ...imgs] });
+            });
+            e.target.value="";
+          };
+          return (
+          <div>
+            <RichNote page={current} updatePage={updatePage}/>
+
+            {/* images */}
+            <div className="rounded-2xl p-4 mt-3" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+              {(current.images||[]).length>0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                  {(current.images||[]).map((img,i)=>(
+                    <div key={i} className="group relative rounded-lg overflow-hidden" style={{border:"1px solid var(--border)"}}>
+                      {img ? <img src={img} alt="" className="w-full object-cover" style={{maxHeight:"160px"}}/> : <div className="p-2"><input autoFocus value={img} onChange={e=>updImg(i,e.target.value)} placeholder="coller URL image..." className="w-full text-[11px] bg-transparent outline-none" style={{color:"var(--text)"}}/></div>}
+                      <button onClick={()=>delImg(i)} className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={12}/></button>
+                      {img && !img.startsWith("data:") && <input value={img} onChange={e=>updImg(i,e.target.value)} className="w-full text-[9px] px-1 py-0.5 outline-none" style={{background:"var(--surface2)", color:"var(--text)"}}/>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={addImg} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--surface2)", color:"var(--text)", border:"1px dashed var(--border)"}}>
+                  🔗 par URL
+                </button>
+                <label className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs cursor-pointer" style={{background:"var(--primary)", color:"var(--bg)"}}>
+                  🖼️ depuis ma galerie
+                  <input type="file" accept="image/*" multiple onChange={addFromGallery} className="hidden"/>
+                </label>
+              </div>
+            </div>
           </div>
-        )}
+          );
+        })()}
       </>)}
     </div>
   );
@@ -1249,9 +1469,20 @@ function ScrapBlock({ block, onChange, onDelete }) {
         {(block.type==="image"||block.type==="gif") && (
           <div>
             {block.content ? <img src={block.content} alt="" className="w-full rounded-lg" style={{boxShadow:"0 4px 16px rgba(0,0,0,0.2)", border:"4px solid #fff"}}/> :
-              <div className="aspect-video rounded-lg flex items-center justify-center text-xs" style={{background:"rgba(255,255,255,0.5)", border:"4px solid #fff", color:"#888"}}>colle une URL ↓</div>}
+              <div className="aspect-video rounded-lg flex items-center justify-center text-xs" style={{background:"rgba(255,255,255,0.5)", border:"4px solid #fff", color:"#888"}}>colle une URL ou choisis ↓</div>}
             <input value={block.content||""} onChange={e=>onChange({content:e.target.value})} placeholder={block.type==="gif"?"URL du gif":"URL de l'image"}
               className="mt-1 w-full bg-transparent text-[10px] outline-none border-b py-0.5" style={{borderColor:"var(--border)", color:"var(--ink)"}}/>
+            {block.type==="image" && (
+              <label className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] cursor-pointer" style={{background:"var(--primary)", color:"var(--bg)"}}>
+                🖼️ galerie
+                <input type="file" accept="image/*" className="hidden" onChange={(e)=>{
+                  const f=e.target.files?.[0]; if(!f) return;
+                  const r=new FileReader();
+                  r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1000; let{width:w,height:h}=img; if(w>max||h>max){const s=max/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);} const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h); onChange({content:c.toDataURL("image/jpeg",0.8)}); }; img.onerror=()=>onChange({content:r.result}); img.src=r.result; };
+                  r.readAsDataURL(f); e.target.value="";
+                }}/>
+              </label>
+            )}
           </div>
         )}
         {block.type==="music" && (
@@ -1327,7 +1558,7 @@ async function fetchFromLink(url) {
   return { ok:false };
 }
 
-function PassionsList({ items, setItems, onMakeDR }) {
+function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }) {
   const [openId, setOpenId] = useState(null);
   const [linkInput, setLinkInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1428,49 +1659,182 @@ function PassionsList({ items, setItems, onMakeDR }) {
     </div>
   );
 
-  /* ---- LISTE ---- */
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h3 className="text-2xl" style={{fontFamily:"var(--font-display)", color:"var(--text)"}}>Anime · Films · K-Dramas · Livres</h3>
-        <button onClick={addBlank} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/> Vide</button>
-      </div>
+  /* ---- PIÈCE COZY ---- */
+  const isBook = (i) => /livre|manga|roman|bd|comic|bouquin|webtoon/i.test(i.type||"");
+  const works = items.filter(i=>i.id!=="_bingo");
+  const books = works.filter(isBook);
+  const screens = works.filter(i=>!isBook(i));
+  const favs = works.filter(i=>i.status==="favori");
+  const [zoom, setZoom] = useState(null); // "library" | "tv" | null
 
-      {/* barre lien auto */}
-      <div className="rounded-2xl p-4 mb-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
-        <p className="text-xs italic mb-2" style={{color:"var(--muted)"}}>Colle un lien (Wikipedia de préférence) → la fiche se remplit toute seule (titre, résumé, couverture). Puis ajoute ton avis ✦</p>
-        <div className="flex gap-2">
-          <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()}
-            placeholder="https://fr.wikipedia.org/wiki/..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
-          <button onClick={addFromLink} disabled={loading} className="px-4 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"⏳":"✦ Remplir"}</button>
-        </div>
-        {msg && <p className="text-xs mt-2" style={{color:"var(--accent)"}}>{msg}</p>}
-      </div>
+  // ambiance heure (fenêtre)
+  const hr = new Date().getHours();
+  const night = hr<7 || hr>=20;
+  const dusk = hr>=18 && hr<20;
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map(i=>(
+  // vue zoomée bibliothèque
+  if (zoom==="library") return (
+    <div className="animate-fade-up">
+      <button onClick={()=>setZoom(null)} className="mb-4 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour à la pièce</button>
+      <h3 className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📚 Ma bibliothèque</h3>
+      <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Touche un livre pour l'ouvrir</p>
+      <div className="flex gap-2 mb-4">
+        <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()} placeholder="coller un lien Wikipedia du livre..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        <button onClick={addFromLink} disabled={loading} className="px-3 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"⏳":"✦"}</button>
+        <button onClick={()=>{ addBlank(); }} className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/></button>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-3">
+        {books.map(i=>(
+          <button key={i.id} onClick={()=>setOpenId(i.id)} className="group text-left transition hover:scale-105">
+            <div className="rounded-md overflow-hidden shadow-lg" style={{aspectRatio:"2/3", background:"var(--surface2)", borderLeft:"3px solid rgba(0,0,0,0.3)"}}>
+              {i.image ? <img src={i.image} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-2xl">📖</div>}
+            </div>
+            <p className="text-[10px] mt-1 truncate" style={{color:"var(--text)"}}>{i.status==="favori"&&"⭐ "}{i.title||"?"}</p>
+          </button>
+        ))}
+        {books.length===0 && <p className="col-span-full italic text-sm py-6" style={{color:"var(--muted)"}}>Aucun livre. Ajoute-en un (type : livre, manga, roman...) ✦</p>}
+      </div>
+    </div>
+  );
+
+  // vue zoomée télé
+  if (zoom==="tv") return (
+    <div className="animate-fade-up">
+      <button onClick={()=>setZoom(null)} className="mb-4 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour à la pièce</button>
+      <h3 className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📺 Mon espace visionnage</h3>
+      <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Animes · Films · Séries · K-Dramas</p>
+      <div className="flex gap-2 mb-4">
+        <input value={linkInput} onChange={e=>setLinkInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFromLink()} placeholder="coller un lien Wikipedia..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        <button onClick={addFromLink} disabled={loading} className="px-3 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{loading?"⏳":"✦"}</button>
+        <button onClick={()=>{ addBlank(); }} className="px-3 rounded-lg text-sm" style={{background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text)"}}><Plus size={14}/></button>
+      </div>
+      {msg && <p className="text-xs mb-3" style={{color:"var(--accent)"}}>{msg}</p>}
+
+      {/* BINGO de visionnage */}
+      {(()=>{
+        const bingo = items.find(i=>i.id==="_bingo") || {id:"_bingo", checks:{}};
+        const CHALLENGES = ["Un classique","Pleurer devant","Une nuit blanche","Recommandé par un ami","Sous-titré VO","Un film d'animation","Une romance","Un thriller","Sorti cette année","Plus de 3 saisons","Un coup de cœur","Un truc bizarre"];
+        const checks = bingo.checks||{};
+        const toggle = (idx)=>{ const nc={...checks,[idx]:!checks[idx]}; const others=items.filter(i=>i.id!=="_bingo"); setItems([{id:"_bingo",checks:nc},...others]); };
+        const done = Object.values(checks).filter(Boolean).length;
+        return (
+          <div className="rounded-2xl p-4 mb-5" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎬 Bingo de visionnage</h4>
+              <span className="text-xs" style={{color:"var(--muted)"}}>{done}/12</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {CHALLENGES.map((c,idx)=>(
+                <button key={idx} onClick={()=>toggle(idx)} className="rounded-lg p-2 text-[10px] leading-tight text-center transition" style={{background:checks[idx]?"var(--primary)":"var(--surface2)", color:checks[idx]?"var(--bg)":"var(--text)", border:"1px solid var(--border)", minHeight:"48px"}}>
+                  {checks[idx]?"✓ ":""}{c}
+                </button>
+              ))}
+            </div>
+            {done===12 && <p className="text-center text-xs mt-2" style={{color:"var(--accent)"}}>✦ Bingo complet ! Quelle cinéphile 🌙</p>}
+          </div>
+        );
+      })()}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {screens.map(i=>(
           <button key={i.id} onClick={()=>setOpenId(i.id)} className="group text-left rounded-2xl overflow-hidden transition hover:scale-[1.02]" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
             <div className="relative" style={{aspectRatio:"3/4"}}>
               {i.image ? <img src={i.image} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-4xl" style={{background:"var(--surface2)"}}>🎬</div>}
-              {i.status && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px]" style={{background:"rgba(0,0,0,0.5)", color:"#fff", backdropFilter:"blur(4px)"}}>{i.status}</span>}
-              {i.rating && <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px]" style={{background:"rgba(0,0,0,0.5)", color:"#e0c97a"}}>★ {i.rating}</span>}
+              {i.status && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px]" style={{background:"rgba(0,0,0,0.5)", color:"#fff", backdropFilter:"blur(4px)"}}>{i.status==="favori"?"⭐ favori":i.status}</span>}
             </div>
             <div className="p-3">
               <h4 className="text-lg leading-tight" style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}>{i.title||"Sans titre"}</h4>
-              {i.type && <p className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>{i.type}</p>}
               {i.epCur && i.epTotal && (
                 <div className="mt-1.5">
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{background:"var(--surface2)"}}>
-                    <div className="h-full" style={{width:`${Math.min(100,Math.round(i.epCur/i.epTotal*100))}%`, background:"var(--primary)"}}/>
-                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{background:"var(--surface2)"}}><div className="h-full" style={{width:`${Math.min(100,Math.round(i.epCur/i.epTotal*100))}%`, background:"var(--primary)"}}/></div>
                   <p className="text-[9px] mt-0.5" style={{color:"var(--muted)"}}>ep {i.epCur}/{i.epTotal}{i.lastWatch && (Date.now()-i.lastWatch)/86400000>=7 && i.epCur<i.epTotal && " ⚠️"}</p>
                 </div>
               )}
             </div>
           </button>
         ))}
-        {items.length===0 && <p className="col-span-full text-center italic py-12" style={{color:"var(--muted)"}}>Rien encore. Colle un lien ou ajoute une fiche vide ✦</p>}
+        {screens.length===0 && <p className="col-span-full italic text-sm py-6" style={{color:"var(--muted)"}}>Aucun contenu vidéo encore ✦</p>}
       </div>
+    </div>
+  );
+
+  // ----- LA PIÈCE -----
+  return (
+    <div className="animate-fade-up">
+      {roomProgress}
+      <div className="text-center mb-4">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🏠 Mon petit cocon</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Touche la bibliothèque ou la télé pour explorer</p>
+      </div>
+
+      <div className="relative rounded-3xl overflow-hidden mx-auto" style={{maxWidth:"720px", aspectRatio:"4/3", background:"linear-gradient(180deg, var(--surface2) 0%, var(--bg2) 70%)", border:"1px solid var(--border)", boxShadow:"inset 0 0 50px rgba(0,0,0,0.2)"}}>
+        <RoomDecor unlocked={decor}/>
+
+        {/* ---- MUR DU FOND : fenêtre centrée en haut ---- */}
+        <div className="absolute overflow-hidden" style={{top:"8%", left:"50%", transform:"translateX(-50%)", width:"24%", aspectRatio:"3/4", borderRadius:"50% 50% 6px 6px", border:"5px solid var(--accent)", background: night?"linear-gradient(180deg,#0a1230,#1a2350)":dusk?"linear-gradient(180deg,#e88ab0,#ffd9a0)":"linear-gradient(180deg,#9ad0f0,#dff2ff)"}}>
+          {night && Array.from({length:12}).map((_,i)=>(<span key={i} className="absolute rounded-full" style={{top:`${Math.random()*65}%`,left:`${Math.random()*100}%`,width:"2px",height:"2px",background:"#fff",opacity:0.8,animation:`twinkle ${2+Math.random()*2}s ease-in-out infinite`}}/>))}
+          {night
+            ? <div className="absolute rounded-full" style={{top:"14%",right:"18%",width:"18px",height:"18px",background:"radial-gradient(circle at 35% 35%,#fff,#e8e0c0)",boxShadow:"0 0 12px #fff8e0"}}/>
+            : <div className="absolute rounded-full" style={{top:"16%",right:"20%",width:"20px",height:"20px",background:"radial-gradient(circle,#fff6c0,#ffd860)",boxShadow:"0 0 16px #ffe080"}}/>}
+          {Array.from({length:3}).map((_,i)=>(<span key={"f"+i} className="absolute" style={{top:`${45+Math.random()*35}%`,left:`${10+Math.random()*70}%`,fontSize:"10px",opacity:0.85,animation:`floatY ${3+Math.random()*2}s ease-in-out infinite`,animationDelay:`${Math.random()*2}s`}}>{night?"✨":"🦋"}</span>))}
+        </div>
+        {/* rebord de fenêtre */}
+        <div className="absolute" style={{top:"calc(8% + 0px)", left:"50%", transform:"translateX(-50%)", width:"27%", height:"3px", background:"transparent"}}/>
+
+        {/* ---- SOL ---- */}
+        <div className="absolute bottom-0 inset-x-0" style={{height:"16%", background:"var(--surface)", borderTop:"2px solid var(--border)"}}/>
+        {/* tapis */}
+        <div className="absolute rounded-[50%]" style={{left:"50%", bottom:"3%", transform:"translateX(-50%)", width:"40%", height:"9%", background:"var(--accent)", opacity:0.25}}/>
+        {/* plante */}
+        <span className="absolute" style={{left:"48%", bottom:"15%", transform:"translateX(-50%)", fontSize:"26px"}}>🪴</span>
+
+        {/* ---- BIBLIOTHÈQUE (gauche) ---- */}
+        <div className="absolute" style={{left:"5%", top:"30%", width:"28%", bottom:"16%"}}>
+          {/* figurines posées sur le dessus */}
+          <div className="absolute inset-x-0 flex justify-center gap-3" style={{top:"-22px"}}>
+            {favs.filter(isBook).slice(0,3).map((f,i)=>(<span key={f.id} title={f.title} style={{fontSize:"17px", filter:"drop-shadow(0 0 4px var(--accent))"}}>{["🔮","🧚","💎"][i%3]}</span>))}
+          </div>
+          <button onClick={()=>setZoom("library")} className="w-full h-full transition hover:brightness-110 relative" style={{borderRadius:"6px", background:"linear-gradient(180deg, var(--primary), var(--surface2))", border:"3px solid var(--accent)", boxShadow:"0 6px 14px rgba(0,0,0,0.3)", padding:"6px"}}>
+            <div className="w-full h-full flex flex-col gap-[3px]">
+              {[0,1,2,3].map(shelf=>(
+                <div key={shelf} className="flex-1 flex items-end justify-start gap-[2px] px-1" style={{borderBottom:"3px solid rgba(0,0,0,0.35)"}}>
+                  {books.slice(shelf*4, shelf*4+4).map(b=>(
+                    <div key={b.id} title={b.title} style={{width:"20%", height:`${72+(b.title?.length%3)*9}%`, background:b.image?`url(${b.image}) center/cover`:`hsl(${(b.title||"x").charCodeAt(0)*7%360},45%,58%)`, borderRadius:"1px 1px 0 0", borderTop:"2px solid rgba(255,255,255,0.25)"}}/>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </button>
+          <p className="text-center text-[11px] mt-1" style={{color:"var(--text)", fontFamily:'"Dancing Script",cursive'}}>📚 {books.length} livres</p>
+        </div>
+
+        {/* ---- COIN TÉLÉ (droite) ---- */}
+        <div className="absolute" style={{right:"5%", top:"34%", width:"30%", bottom:"16%"}}>
+          {/* figurines au-dessus de la télé */}
+          <div className="absolute inset-x-0 flex justify-center gap-3" style={{top:"-22px"}}>
+            {favs.filter(i=>!isBook(i)).slice(0,4).map((f,i)=>(<span key={f.id} title={f.title} style={{fontSize:"16px", filter:"drop-shadow(0 0 4px var(--accent))"}}>{["⭐","🌟","💫","✨"][i%4]}</span>))}
+          </div>
+          <button onClick={()=>setZoom("tv")} className="w-full h-full transition hover:brightness-110 flex flex-col" style={{background:"transparent", border:"none"}}>
+            {/* poste TV */}
+            <div style={{flex:"1.6", borderRadius:"10px", background:"linear-gradient(180deg, var(--surface), var(--surface2))", border:"4px solid var(--accent)", padding:"7%"}}>
+              <div className="w-full h-full rounded flex items-center justify-center relative overflow-hidden" style={{background: night?"linear-gradient(135deg,#1a1030,#2a1850)":"linear-gradient(135deg,#3a5a8a,#5a8ac0)"}}>
+                <span className="text-2xl" style={{animation:"twinkle 3s ease-in-out infinite"}}>📺</span>
+                <div className="absolute inset-0" style={{background:"repeating-linear-gradient(0deg,rgba(255,255,255,0.06),rgba(255,255,255,0.06) 2px,transparent 2px,transparent 4px)"}}/>
+              </div>
+            </div>
+            {/* meuble + cassettes */}
+            <div style={{flex:"0.8", marginTop:"4px", borderRadius:"6px", background:"var(--primary)", border:"2px solid var(--accent)"}}>
+              <div className="flex items-center justify-center gap-[3px] h-full px-2">
+                {screens.slice(0,6).map(s=>(<div key={s.id} title={s.title} style={{width:"13%", height:"55%", background:s.image?`url(${s.image}) center/cover`:"var(--surface2)", borderRadius:"1px", border:"1px solid rgba(0,0,0,0.3)"}}/>))}
+              </div>
+            </div>
+          </button>
+          <p className="text-center text-[11px] mt-1" style={{color:"var(--text)", fontFamily:'"Dancing Script",cursive'}}>📺 {screens.length} à regarder</p>
+        </div>
+
+      </div>
+
+      <p className="text-center text-[11px] italic mt-3" style={{color:"var(--muted)"}}>💡 Astuce : change le thème de cette page (bouton 🎨) pour redécorer la pièce — Dark Academia, Cyber Y2K, Fairy...</p>
     </div>
   );
 }
@@ -2240,6 +2604,7 @@ const SUBTABS = {
   ],
   witch: [
     {k:"tavern",label:"Tavern",icon:BookMarked},
+    {k:"mood",label:"Chaudron d'humeur",icon:Flame},
     {k:"moon",label:"La Lune",icon:Moon},
     {k:"wheel",label:"Roue de l'année",icon:Sun},
     {k:"pendulum",label:"Pendule",icon:Gem},
@@ -2279,6 +2644,52 @@ const DR_DEFAULT_SECTIONS = [
   { id:"attempts", label:"✦ Tentatives & ressentis", icon:"📝" },
 ];
 
+// Template d'accordéons par défaut (clonable, modifiable)
+const DR_TEMPLATE = [
+  { id:"perso", icon:"☾", title:"Information Personnelle", subs:[
+    { id:"about", title:"à propos de moi", fields:[["⚡︎ name","Yasmine"],["✧ âge",""],["☾ groupe sanguin",""],["⋆ maison",""],["✦ identité",""]], text:"" },
+    { id:"appearance", title:"appearance", text:"" },
+    { id:"wardrobe", title:"wardrobe", text:"" },
+    { id:"belongings", title:"belongings", text:"" },
+    { id:"powers", title:"pouvoirs & capacités", text:"" },
+    { id:"langs", title:"langues", text:"" },
+  ]},
+  { id:"relations", icon:"♡", title:"Relationships & more", subs:[
+    { id:"family", title:"family", text:"" },
+    { id:"friends", title:"friends", text:"" },
+    { id:"know", title:"people I know", text:"" },
+    { id:"love", title:"love interest", text:"" },
+    { id:"scenarios", title:"scenarios", text:"" },
+  ]},
+  { id:"reality", icon:"✦", title:"Reality Information", subs:[
+    { id:"mansion", title:"house / mansion", text:"" },
+    { id:"tech", title:"technologies", text:"" },
+    { id:"transport", title:"transportation", text:"" },
+    { id:"places", title:"places", text:"" },
+    { id:"memories", title:"core memories", text:"" },
+  ]},
+  { id:"important", icon:"⚡", title:"Important Information", subs:[
+    { id:"hogwarts", title:"Hogwarts / univers", text:"" },
+    { id:"education", title:"education", text:"" },
+    { id:"world", title:"wizarding world", text:"" },
+    { id:"timeline2", title:"reality & timeline", text:"" },
+    { id:"letters", title:"letters", text:"" },
+  ]},
+  { id:"basic", icon:"☆", title:"Basic Information", subs:[
+    { id:"timeline", title:"timeline", text:"" },
+    { id:"safety", title:"safety & more", text:"" },
+    { id:"visual", title:"visual", text:"" },
+    { id:"lifa", title:"LIFA", text:"" },
+  ]},
+];
+const DIVIDER_STYLES = {
+  hearts:"❤︎ ❤︎ ❤︎ ❤︎ ❤︎ ❤︎ ❤︎ ❤︎ ❤︎ ❤︎ ❤︎",
+  stars:"✦ ⋆ ✧ ⋆ ✦ ⋆ ✧ ⋆ ✦ ⋆ ✧ ⋆ ✦",
+  knots:"⋆ ❀ ⋆ ❀ ⋆ ❀ ⋆ ❀ ⋆ ❀ ⋆ ❀",
+  bows:"🎀 ⋆ 🎀 ⋆ 🎀 ⋆ 🎀 ⋆ 🎀 ⋆ 🎀",
+  sparkle:"˚ ✦ ⋆ ｡˚ ✦ ⋆ ｡˚ ✦ ⋆ ｡˚ ✦ ⋆ ｡",
+};
+
 function makeBlankDR() {
   return {
     id: uid(),
@@ -2294,7 +2705,101 @@ function makeBlankDR() {
   };
 }
 
-function ShiftingHub({ drs, setDrs }) {
+/* ============================================================
+   ✦ SHIFTING DATA ANALYSER — stats des tentatives
+   ============================================================ */
+const SHIFT_METHODS_Q = ["Raven","Julia","Estelle","Alice","Pilow","Sunni","ондes Thêta","Visualisation","Affirmations","Autre"];
+const SHIFT_SYMPTOMS = ["Vibrations","Flottement","Voix/sons","Engourdissement","Chaleur","Vu ma DR","Aucun"];
+const SHIFT_MOODS = ["😊 sereine","😴 fatiguée","😢 triste","😰 stressée","🤩 excitée","😐 neutre"];
+function ShiftAnalyser({ log, setLog, moon }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ method:"", symptom:"", mood:"", shadowWork:false, aligned:50 });
+  const moonName = moon?.name || "—";
+
+  const addEntry = () => {
+    setLog([{ id:uid(), date:new Date().toISOString().slice(0,10), ...form, moonPhase:moonName, moonIdx:moon?.idx??null }, ...log]);
+    setForm({ method:"", symptom:"", mood:"", shadowWork:false, aligned:50 });
+    setOpen(false);
+  };
+
+  // analyse : meilleure combinaison
+  const analysis = (()=>{
+    if (log.length<3) return null;
+    const byMethod = {}, byMoon = {};
+    let shadowAvg=[0,0], noShadowAvg=[0,0];
+    log.forEach(e=>{
+      if(e.method){ byMethod[e.method]=byMethod[e.method]||[]; byMethod[e.method].push(e.aligned); }
+      if(e.moonPhase){ byMoon[e.moonPhase]=byMoon[e.moonPhase]||[]; byMoon[e.moonPhase].push(e.aligned); }
+      if(e.shadowWork){ shadowAvg[0]+=e.aligned; shadowAvg[1]++; } else { noShadowAvg[0]+=e.aligned; noShadowAvg[1]++; }
+    });
+    const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+    const best = obj => Object.entries(obj).map(([k,v])=>({k, a:avg(v), n:v.length})).sort((a,b)=>b.a-a.a)[0];
+    const bestMethod = best(byMethod), bestMoon = best(byMoon);
+    const shadowHelps = shadowAvg[1] && noShadowAvg[1] && (shadowAvg[0]/shadowAvg[1] > noShadowAvg[0]/noShadowAvg[1]);
+    return { bestMethod, bestMoon, shadowHelps, globalAvg: Math.round(avg(log.map(e=>e.aligned))) };
+  })();
+
+  return (
+    <div className="rounded-2xl p-5 mb-6" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🔬 Analyse de mes tentatives</h3>
+        <button onClick={()=>setOpen(o=>!o)} className="px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>{open?"fermer":"+ noter une nuit"}</button>
+      </div>
+      <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Note tes variables après chaque tentative → l'app trouve ce qui marche pour toi.</p>
+
+      {open && (
+        <div className="rounded-xl p-4 mb-4 space-y-3" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Méthode</p>
+            <div className="flex flex-wrap gap-1.5">{SHIFT_METHODS_Q.map(m=>(<button key={m} onClick={()=>setForm({...form,method:m})} className="px-2.5 py-1 rounded-full text-[11px]" style={{background:form.method===m?"var(--primary)":"var(--surface2)", color:form.method===m?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{m}</button>))}</div>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Symptôme physique</p>
+            <div className="flex flex-wrap gap-1.5">{SHIFT_SYMPTOMS.map(m=>(<button key={m} onClick={()=>setForm({...form,symptom:m})} className="px-2.5 py-1 rounded-full text-[11px]" style={{background:form.symptom===m?"var(--primary)":"var(--surface2)", color:form.symptom===m?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{m}</button>))}</div>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Humeur de la veille</p>
+            <div className="flex flex-wrap gap-1.5">{SHIFT_MOODS.map(m=>(<button key={m} onClick={()=>setForm({...form,mood:m})} className="px-2.5 py-1 rounded-full text-[11px]" style={{background:form.mood===m?"var(--primary)":"var(--surface2)", color:form.mood===m?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{m}</button>))}</div>
+          </div>
+          <label className="flex items-center gap-2 text-xs" style={{color:"var(--text)"}}>
+            <input type="checkbox" checked={form.shadowWork} onChange={e=>setForm({...form,shadowWork:e.target.checked})}/> J'ai fait du Shadow Work avant
+          </label>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Alignement ressenti : <b style={{color:"var(--accent)"}}>{form.aligned}%</b></p>
+            <input type="range" min="0" max="100" value={form.aligned} onChange={e=>setForm({...form,aligned:parseInt(e.target.value)})} className="w-full"/>
+          </div>
+          <p className="text-[10px]" style={{color:"var(--muted)"}}>🌙 Phase auto : {moonName}</p>
+          <button onClick={addEntry} className="w-full py-2 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ enregistrer cette nuit</button>
+        </div>
+      )}
+
+      {/* diagnostic */}
+      {analysis ? (
+        <div className="rounded-xl p-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+          <p className="text-sm mb-2" style={{color:"var(--text)"}}>📊 Sur <b>{log.length}</b> tentatives · alignement moyen <b style={{color:"var(--accent)"}}>{analysis.globalAvg}%</b></p>
+          <p className="text-sm leading-relaxed" style={{color:"var(--text)"}}>
+            ✦ Tu es la plus alignée (<b style={{color:"var(--accent)"}}>{Math.round(analysis.bestMethod.a)}%</b>) avec la méthode <b>{analysis.bestMethod.k}</b>
+            {analysis.bestMoon && <> lorsque la lune est <b>{analysis.bestMoon.k}</b></>}
+            {analysis.shadowHelps && <>, et le <b>Shadow Work</b> améliore tes résultats</>}.
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs italic text-center py-2" style={{color:"var(--muted)"}}>Note au moins 3 nuits pour débloquer ton diagnostic personnalisé ✦ ({log.length}/3)</p>
+      )}
+
+      {/* mini historique */}
+      {log.length>0 && (
+        <div className="mt-3 flex gap-1 items-end" style={{height:"50px"}}>
+          {log.slice(0,20).reverse().map(e=>(
+            <div key={e.id} title={`${e.date} · ${e.aligned}%`} className="flex-1 rounded-t" style={{height:`${Math.max(8,e.aligned)}%`, background:"var(--primary)", opacity:0.4+e.aligned/200}}/>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={} }) {
   const [openId, setOpenId] = useState(null);
   const open = drs.find(d=>d.id===openId);
 
@@ -2306,6 +2811,9 @@ function ShiftingHub({ drs, setDrs }) {
 
   return (
     <div className="animate-fade-up">
+      {/* DATA ANALYSER */}
+      <ShiftAnalyser log={shiftLog} setLog={setShiftLog} moon={moon}/>
+
       {/* En-tête méthodes */}
       <div className="rounded-2xl p-5 sm:p-6 mb-6" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
         <h3 className="text-2xl mb-3" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ Méthodes de shifting ✦</h3>
@@ -2357,6 +2865,93 @@ function ShiftingHub({ drs, setDrs }) {
   );
 }
 
+/* ============================================================
+   ✦ TEMPLATE DE SCRIPT DR — accordéons modulaires éditables
+   ============================================================ */
+function DRAccordionTemplate({ dr, onUpdate }) {
+  const tmpl = dr.tmpl || DR_TEMPLATE;
+  const [openCat, setOpenCat] = useState({});
+  const [openSub, setOpenSub] = useState({});
+  const setTmpl = (t) => onUpdate({ tmpl: t });
+
+  const loadDefault = () => { if(confirm("Charger le template complet (Poudlard/univers) ? Tes accordéons actuels seront remplacés.")) setTmpl(JSON.parse(JSON.stringify(DR_TEMPLATE))); };
+
+  const updCat = (ci, patch) => setTmpl(tmpl.map((c,i)=>i===ci?{...c,...patch}:c));
+  const updSub = (ci, si, patch) => setTmpl(tmpl.map((c,i)=>i===ci?{...c, subs:c.subs.map((s,j)=>j===si?{...s,...patch}:s)}:c));
+  const addCat = () => setTmpl([...tmpl, {id:uid(), icon:"✦", title:"Nouvelle catégorie", subs:[]}]);
+  const delCat = (ci) => { if(confirm("Supprimer cette catégorie ?")) setTmpl(tmpl.filter((_,i)=>i!==ci)); };
+  const addSub = (ci) => setTmpl(tmpl.map((c,i)=>i===ci?{...c, subs:[...c.subs, {id:uid(), title:"nouvelle sous-section", text:""}]}:c));
+  const delSub = (ci, si) => setTmpl(tmpl.map((c,i)=>i===ci?{...c, subs:c.subs.filter((_,j)=>j!==si)}:c));
+  const addField = (ci,si) => updSub(ci,si,{ fields:[...(tmpl[ci].subs[si].fields||[]), ["✦ clé","valeur"]] });
+  const updField = (ci,si,fi,k,v) => { const f=[...(tmpl[ci].subs[si].fields||[])]; f[fi]=[k,v]; updSub(ci,si,{fields:f}); };
+  const delField = (ci,si,fi) => updSub(ci,si,{ fields:(tmpl[ci].subs[si].fields||[]).filter((_,j)=>j!==fi) });
+
+  if (!dr.tmpl) return (
+    <div className="rounded-2xl p-6 text-center mt-8" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px dashed var(--accent)"}}>
+      <h3 className="text-xl mb-2" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📖 Template de script structuré</h3>
+      <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>Génère un squelette complet façon Notion (accordéons, fiche d'identité, bases de données) — entièrement modifiable.</p>
+      <button onClick={loadDefault} className="px-5 py-2.5 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ générer mon template</button>
+    </div>
+  );
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>📖 Mon script structuré</h3>
+        <button onClick={addCat} className="px-3 py-1.5 rounded-full text-xs flex items-center gap-1" style={{background:"var(--primary)", color:"var(--bg)"}}><Plus size={12}/> catégorie</button>
+      </div>
+
+      <div className="space-y-2">
+        {tmpl.map((cat,ci)=>(
+          <div key={cat.id} className="rounded-2xl overflow-hidden" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+            {/* en-tête catégorie */}
+            <div className="flex items-center gap-2 p-3 cursor-pointer group" style={{background:"var(--surface2)"}} onClick={()=>setOpenCat(o=>({...o,[cat.id]:!o[cat.id]}))}>
+              <span style={{transform:openCat[cat.id]?"rotate(90deg)":"none", transition:"transform .2s", color:"var(--accent)"}}>▸</span>
+              <input value={cat.icon} onClick={e=>e.stopPropagation()} onChange={e=>updCat(ci,{icon:e.target.value})} className="w-7 text-center bg-transparent outline-none text-lg"/>
+              <input value={cat.title} onClick={e=>e.stopPropagation()} onChange={e=>updCat(ci,{title:e.target.value})} className="flex-1 bg-transparent outline-none font-bold text-sm" style={{color:"var(--text)", fontFamily:'"Cinzel",serif'}}/>
+              <button onClick={e=>{e.stopPropagation(); delCat(ci);}} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><Trash2 size={13}/></button>
+            </div>
+
+            {/* sous-sections */}
+            {openCat[cat.id] && (
+              <div className="p-3 space-y-1.5">
+                {cat.subs.map((sub,si)=>{
+                  const sk = cat.id+sub.id;
+                  return (
+                  <div key={sub.id} className="rounded-xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
+                    <div className="flex items-center gap-2 px-3 py-2 cursor-pointer group" style={{background:"var(--surface2)"}} onClick={()=>setOpenSub(o=>({...o,[sk]:!o[sk]}))}>
+                      <span style={{transform:openSub[sk]?"rotate(90deg)":"none", transition:"transform .2s", color:"var(--accent)", fontSize:"11px"}}>▸</span>
+                      <input value={sub.title} onClick={e=>e.stopPropagation()} onChange={e=>updSub(ci,si,{title:e.target.value})} className="flex-1 bg-transparent outline-none text-xs" style={{color:"var(--text)"}}/>
+                      <button onClick={e=>{e.stopPropagation(); delSub(ci,si);}} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={12}/></button>
+                    </div>
+                    {openSub[sk] && (
+                      <div className="p-3 space-y-2" style={{background:"var(--surface)"}}>
+                        {/* fiche d'identité clé/valeur */}
+                        {(sub.fields||[]).map((f,fi)=>(
+                          <div key={fi} className="flex items-center gap-2 group/f">
+                            <input value={f[0]} onChange={e=>updField(ci,si,fi,e.target.value,f[1])} className="bg-transparent outline-none text-xs w-28 flex-shrink-0" style={{color:"var(--accent)"}}/>
+                            <span style={{color:"var(--muted)"}}>:</span>
+                            <input value={f[1]} onChange={e=>updField(ci,si,fi,f[0],e.target.value)} placeholder="..." className="flex-1 bg-transparent outline-none text-xs" style={{color:"var(--text)", borderBottom:"1px solid var(--border)"}}/>
+                            <button onClick={()=>delField(ci,si,fi)} className="opacity-0 group-hover/f:opacity-100" style={{color:"var(--muted)"}}><X size={11}/></button>
+                          </div>
+                        ))}
+                        <button onClick={()=>addField(ci,si)} className="text-[10px] flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={10}/> champ (clé: valeur)</button>
+                        {/* texte libre */}
+                        <textarea value={sub.text||""} onChange={e=>updSub(ci,si,{text:e.target.value})} rows={3} placeholder="écris ici..." className="w-full bg-transparent outline-none text-sm mt-1" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
+                      </div>
+                    )}
+                  </div>
+                );})}
+                <button onClick={()=>addSub(ci)} className="text-[11px] flex items-center gap-1 mt-1" style={{color:"var(--accent)"}}><Plus size={11}/> sous-section</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const [activeSection, setActiveSection] = useState(dr.sections[0]?.id || "general");
   const currentSec = dr.sections.find(s=>s.id===activeSection);
@@ -2398,12 +2993,23 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
         <div className="relative" style={{aspectRatio:"16/7", minHeight:"200px",
           background: dr.cover ? `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.5)), url(${dr.cover}) center/cover` : `linear-gradient(160deg, var(--surface2) 0%, var(--primary) 100%)`}}>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+            {dr.crest && <img src={dr.crest} alt="" className="w-16 h-16 object-contain mb-2" style={{filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.5))"}}/>}
+            <p className="text-sm tracking-[0.3em] mb-1" style={{color:"#fff", textShadow:"0 1px 6px rgba(0,0,0,0.6)", animation:"twinkle 3s ease-in-out infinite"}}>✧ ˚ ⁺</p>
             <input value={dr.name} onChange={e=>onUpdate({name:e.target.value})}
               className="bg-transparent outline-none text-center text-3xl sm:text-5xl"
               style={{fontFamily:'"Dancing Script",cursive', color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,0.6)"}}/>
+            <p className="text-sm tracking-[0.3em] mt-1" style={{color:"#fff", textShadow:"0 1px 6px rgba(0,0,0,0.6)", animation:"twinkle 3.5s ease-in-out infinite"}}>⁺ ˚ ✧</p>
             <input value={dr.quote} onChange={e=>onUpdate({quote:e.target.value})} placeholder="une citation, un mot, un mantra pour cette DR..."
               className="mt-2 w-full max-w-md bg-transparent outline-none text-center text-sm italic"
               style={{color:"#fff", textShadow:"0 1px 6px rgba(0,0,0,0.6)"}}/>
+          </div>
+        </div>
+        {/* callout temporel */}
+        <div className="px-4 py-3" style={{background:"var(--surface2)", borderBottom:"1px solid var(--border)"}}>
+          <div className="rounded-xl px-4 py-2 flex items-center gap-2 text-sm mx-auto" style={{background:"rgba(var(--glow),0.12)", border:"1px solid var(--accent)", maxWidth:"fit-content"}}>
+            <span>⏳</span>
+            <input value={dr.timeRule||""} onChange={e=>onUpdate({timeRule:e.target.value})} placeholder="1 heure [CR] = 1 semaine [DR] !"
+              className="bg-transparent outline-none text-center" style={{color:"var(--accent)", minWidth:"220px"}}/>
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3 p-4" style={{background:"var(--surface)"}}>
@@ -2420,6 +3026,11 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
           <div>
             <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Playlist (Spotify)</label>
             <input value={dr.playlist} onChange={e=>onUpdate({playlist:e.target.value})} placeholder="lien Spotify"
+              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Blason / icône (URL)</label>
+            <input value={dr.crest||""} onChange={e=>onUpdate({crest:e.target.value})} placeholder="petit logo affiché en haut"
               className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
           </div>
         </div>
@@ -2577,6 +3188,9 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
           </div>
         </div>
       </div>
+
+      {/* TEMPLATE STRUCTURÉ (accordéons) */}
+      <DRAccordionTemplate dr={dr} onUpdate={onUpdate}/>
 
       {/* SCÉNARIOS WHAT IF */}
       <DRScenarios dr={dr} onUpdate={onUpdate}/>
@@ -4284,10 +4898,13 @@ function FairyRealm({ data, setData }) {
    ============================================================ */
 function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOverrides, ALL_THEMES, customBackdrops }) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState("theme"); // theme | backdrop
   const key = `sub:${activeSection}:${activeSub}`;
   const ov = overrides[key] || {};
   const setTheme = (t) => setOverrides({ ...overrides, [key]: { ...ov, theme:t } });
   const resetTheme = () => { const c={...overrides}; if(c[key]){ const {theme, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); };
+  const setBackdrop = (b) => setOverrides({ ...overrides, [key]: { ...ov, backdrop:b } });
+  const resetBackdrop = () => { const c={...overrides}; if(c[key]){ const {backdrop, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); };
 
   return (
     <>
@@ -4299,29 +4916,425 @@ function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOve
 
       {open && (
         <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center" onClick={()=>setOpen(false)} style={{background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)"}}>
-          <div onClick={e=>e.stopPropagation()} className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[80vh] overflow-y-auto animate-fade-up" style={{background:"var(--bg2)", border:"1px solid var(--accent)"}}>
+          <div onClick={e=>e.stopPropagation()} className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[82vh] overflow-y-auto animate-fade-up" style={{background:"var(--bg2)", border:"1px solid var(--accent)"}}>
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎨 Thème de cette page</h3>
+              <h3 className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎨 Apparence de cette page</h3>
               <button onClick={()=>setOpen(false)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}><X size={18}/></button>
             </div>
-            <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>« {subLabel} » aura son propre thème, indépendant du reste.</p>
+            <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>« {subLabel} » — thème et fond indépendants du reste.</p>
 
-            <button onClick={resetTheme} className="w-full mb-3 py-2 rounded-xl text-xs" style={{background:ov.theme?"var(--surface)":"var(--primary)", border:"1px solid var(--border)", color:ov.theme?"var(--text)":"var(--bg)"}}>
-              ↺ utiliser le thème du côté (par défaut)
-            </button>
-
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(ALL_THEMES).map(([k,t])=>{ const I=t.icon||Sparkles; return (
-                <button key={k} onClick={()=>{ setTheme(k); }} className="p-3 rounded-xl text-left transition" style={{background:"var(--surface)", border:`1px solid ${ov.theme===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
-                  <I size={15} className="mb-1"/><div className="text-[11px] leading-tight">{t.name}</div>
-                </button>
-              );})}
+            {/* onglets thème / fond */}
+            <div className="flex gap-2 mb-4">
+              <button onClick={()=>setTab("theme")} className="flex-1 py-2 rounded-lg text-xs" style={{background:tab==="theme"?"var(--primary)":"var(--surface)", color:tab==="theme"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>🎨 Thème</button>
+              <button onClick={()=>setTab("backdrop")} className="flex-1 py-2 rounded-lg text-xs" style={{background:tab==="backdrop"?"var(--primary)":"var(--surface)", color:tab==="backdrop"?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>✨ Fond animé</button>
             </div>
-            {ov.theme && <p className="text-xs text-center mt-3" style={{color:"var(--accent)"}}>✦ Cette page utilise « {ALL_THEMES[ov.theme]?.name} »</p>}
+
+            {tab==="theme" && (<>
+              <button onClick={resetTheme} className="w-full mb-3 py-2 rounded-xl text-xs" style={{background:ov.theme?"var(--surface)":"var(--primary)", border:"1px solid var(--border)", color:ov.theme?"var(--text)":"var(--bg)"}}>
+                ↺ utiliser le thème du côté (par défaut)
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(ALL_THEMES).map(([k,t])=>{ const I=t.icon||Sparkles; return (
+                  <button key={k} onClick={()=>setTheme(k)} className="p-3 rounded-xl text-left transition" style={{background:"var(--surface)", border:`1px solid ${ov.theme===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
+                    <I size={15} className="mb-1"/><div className="text-[11px] leading-tight">{t.name}</div>
+                  </button>
+                );})}
+              </div>
+              {ov.theme && <p className="text-xs text-center mt-3" style={{color:"var(--accent)"}}>✦ Cette page utilise « {ALL_THEMES[ov.theme]?.name} »</p>}
+            </>)}
+
+            {tab==="backdrop" && (<>
+              <button onClick={resetBackdrop} className="w-full mb-3 py-2 rounded-xl text-xs" style={{background:(ov.backdrop===undefined)?"var(--primary)":"var(--surface)", border:"1px solid var(--border)", color:(ov.backdrop===undefined)?"var(--bg)":"var(--text)"}}>
+                ↺ fond du thème (par défaut)
+              </button>
+              <button onClick={()=>setBackdrop("none")} className="w-full mb-3 py-2 rounded-xl text-xs" style={{background:ov.backdrop==="none"?"var(--primary)":"var(--surface)", border:"1px solid var(--border)", color:ov.backdrop==="none"?"var(--bg)":"var(--text)"}}>
+                ∅ aucun fond
+              </button>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(BACKDROPS).map(([k,b])=>(
+                  <button key={k} onClick={()=>setBackdrop(k)} className="p-2 rounded-xl text-center transition" style={{background:ov.backdrop===k?"rgba(var(--glow),0.2)":"var(--surface)", border:`1px solid ${ov.backdrop===k?"var(--primary)":"var(--border)"}`, color:"var(--text)"}}>
+                    <div className="text-xl">{b.emoji}</div><div className="text-[9px] leading-tight mt-1">{b.name}</div>
+                  </button>
+                ))}
+                {Object.entries(customBackdrops).map(([k,b])=>(
+                  <button key={k} onClick={()=>setBackdrop(k)} className="p-2 rounded-xl text-center transition" style={{background:ov.backdrop===k?"rgba(var(--glow),0.2)":"var(--surface)", border:`1px solid ${ov.backdrop===k?"var(--primary)":"var(--accent)"}`, color:"var(--text)"}}>
+                    <div className="text-xl">{b.particle}</div><div className="text-[9px] leading-tight mt-1">{b.name}</div>
+                  </button>
+                ))}
+              </div>
+            </>)}
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/* ============================================================
+   ✦ SERRE MYSTIQUE — accueil visuel de Yasmeen
+   ============================================================ */
+const MOOD_LIQUID = { "✨":"#e0c97a", "😊":"#7ac8a8", "😌":"#8ac0e8", "🥰":"#e87a9a", "😢":"#6a8ad0", "😡":"#c0392b", "😴":"#9a7ad0", "🤩":"#e89b5a", "😰":"#7a9a8a" };
+function MysticGreenhouse({ lastMood, plantsCount, decor=[], onCauldron, onPortal, onHerbs }) {
+  const [portalAnim, setPortalAnim] = useState(false);
+  const liquid = (lastMood && MOOD_LIQUID[lastMood.emoji]) || "var(--primary)";
+  const triggerPortal = () => { setPortalAnim(true); setTimeout(()=>{ setPortalAnim(false); onPortal(); }, 1400); };
+  const herbCount = Math.min(7, Math.max(plantsCount, 0));
+
+  return (
+    <div>
+      <div className="text-center mb-4">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🌿 Ma serre mystique 🔮</h3>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Touche le chaudron, l'herbier, ou la cloche pour voyager</p>
+      </div>
+
+      <div className="relative rounded-3xl overflow-hidden mx-auto" style={{maxWidth:"720px", aspectRatio:"4/3", background:"linear-gradient(180deg, var(--surface2) 0%, var(--bg2) 75%)", border:"1px solid var(--border)", boxShadow:"inset 0 0 50px rgba(0,0,0,0.25)"}}>
+        <RoomDecor unlocked={decor}/>
+        {/* structure de serre : arches */}
+        <div className="absolute inset-0 pointer-events-none" style={{background:"repeating-linear-gradient(90deg, transparent, transparent 23%, rgba(var(--glow),0.06) 23%, rgba(var(--glow),0.06) 24%)"}}/>
+        <div className="absolute top-0 inset-x-0 pointer-events-none" style={{height:"14%", background:"linear-gradient(180deg, rgba(var(--glow),0.12), transparent)", borderBottom:"1px solid var(--border)"}}/>
+
+        {/* sol */}
+        <div className="absolute bottom-0 inset-x-0" style={{height:"15%", background:"var(--surface)", borderTop:"2px solid var(--border)"}}/>
+
+        {/* ---- HERBIER SUSPENDU (en haut) ---- */}
+        <button onClick={onHerbs} className="absolute inset-x-0 top-0 transition hover:brightness-110" style={{height:"38%", background:"transparent", border:"none"}}>
+          {/* poutre du plafond */}
+          <div className="absolute inset-x-0 top-0" style={{height:"7px", background:"var(--accent)", opacity:0.7}}/>
+          <div className="absolute inset-x-0 flex justify-around items-start" style={{top:"7px", paddingLeft:"6%", paddingRight:"6%"}}>
+            {Array.from({length:7}).map((_,i)=>{
+              const has = i < herbCount;
+              const plant = ["🌿","🌸","🍄","🌺","🪻","🌱","💐"][i%7];
+              const cordLen = 18 + (i%3)*14;
+              return (
+                <span key={i} className="relative flex flex-col items-center" style={{width:"12%"}}>
+                  {/* corde */}
+                  <span style={{width:"2px", height:`${cordLen}px`, background:"linear-gradient(var(--accent), transparent)", opacity:0.6}}/>
+                  {/* pot suspendu */}
+                  <span className="relative flex items-center justify-center" style={{animation:`sway ${3.5+i%3}s ease-in-out infinite`, transformOrigin:"top center"}}>
+                    {has ? (
+                      <span className="relative flex flex-col items-center">
+                        <span style={{fontSize:"24px", filter:"drop-shadow(0 0 6px var(--accent))", marginBottom:"-8px", zIndex:2}}>{plant}</span>
+                        <span style={{width:"26px", height:"22px", background:"linear-gradient(180deg, var(--surface), var(--surface2))", borderRadius:"4px 4px 12px 12px", border:"2px solid var(--accent)"}}/>
+                      </span>
+                    ) : (
+                      <span style={{width:"22px", height:"20px", background:"var(--surface)", borderRadius:"4px 4px 10px 10px", border:"1px dashed var(--border)", opacity:0.5}}/>
+                    )}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+          <span className="absolute inset-x-0 text-center text-[11px]" style={{bottom:"0", color:"var(--text)", fontFamily:'"Dancing Script",cursive'}}>🌿 mon herbier · {plantsCount} plante{plantsCount>1?"s":""} cultivée{plantsCount>1?"s":""}</span>
+        </button>
+
+        {/* ---- CHAUDRON (bas gauche) ---- */}
+        <div className="absolute" style={{left:"8%", bottom:"15%", width:"30%"}}>
+          <button onClick={onCauldron} className="w-full transition hover:scale-105 relative flex flex-col items-center" style={{background:"transparent", border:"none"}}>
+            {/* fumée */}
+            <div className="relative" style={{height:"34px", width:"100%"}}>
+              {Array.from({length:4}).map((_,i)=>(<span key={i} className="absolute" style={{left:`${30+i*12}%`, bottom:"0", fontSize:"14px", opacity:0.5, animation:`emberRise ${2.5+i*0.6}s ease-in infinite`, animationDelay:`${i*0.4}s`}}>💨</span>))}
+            </div>
+            {/* liquide + chaudron */}
+            <div className="relative" style={{width:"82%"}}>
+              <div className="rounded-b-full rounded-t-lg relative overflow-hidden" style={{height:"60px", background:"radial-gradient(circle at 50% 0%, #2a2a2e, #0d0d10)", border:"3px solid var(--accent)"}}>
+                <div className="absolute inset-x-1 rounded-b-full" style={{bottom:"3px", top:"30%", background:liquid, opacity:0.85, animation:"glow 3s ease-in-out infinite"}}>
+                  {Array.from({length:3}).map((_,i)=>(<span key={i} className="absolute rounded-full" style={{left:`${20+i*28}%`, bottom:`${10+Math.random()*30}%`, width:"6px", height:"6px", background:"rgba(255,255,255,0.4)", animation:`floatY ${1.5+i*0.5}s ease-in-out infinite`}}/>))}
+                </div>
+              </div>
+              <div className="mx-auto" style={{width:"110%", height:"6px", marginLeft:"-5%", background:"var(--accent)", borderRadius:"4px", marginTop:"-2px"}}/>
+            </div>
+          </button>
+          <p className="text-center text-[11px] mt-2" style={{color:"var(--text)", fontFamily:'"Dancing Script",cursive'}}>🫧 mon humeur {lastMood?`· ${lastMood.emoji}`:""}</p>
+        </div>
+
+        {/* ---- CLOCHE DE VERRE / PORTAIL (bas droite) ---- */}
+        <div className="absolute" style={{right:"8%", bottom:"15%", width:"30%"}}>
+          <button onClick={triggerPortal} className="w-full transition hover:scale-105 relative flex flex-col items-center" style={{background:"transparent", border:"none"}}>
+            {/* cloche */}
+            <div className="relative flex items-center justify-center" style={{width:"96px", height:"110px"}}>
+              <div className="absolute" style={{inset:"0", borderRadius:"50% 50% 12px 12px", background:"linear-gradient(180deg, rgba(var(--glow),0.18), rgba(var(--glow),0.05))", border:"2px solid var(--accent)", boxShadow:"inset 0 0 20px rgba(var(--glow),0.3)"}}/>
+              <span style={{fontSize:"40px", animation:"floatY 4s ease-in-out infinite", filter:"drop-shadow(0 0 8px var(--accent))"}}>🔮</span>
+              {Array.from({length:6}).map((_,i)=>(<span key={i} className="absolute" style={{top:`${20+Math.random()*60}%`, left:`${15+Math.random()*70}%`, fontSize:"9px", opacity:0.7, animation:`twinkle ${1.5+Math.random()*2}s ease-in-out infinite`}}>✨</span>))}
+              <div className="absolute" style={{bottom:"-4px", width:"108%", height:"8px", background:"var(--accent)", borderRadius:"4px"}}/>
+            </div>
+          </button>
+          <p className="text-center text-[11px] mt-2" style={{color:"var(--text)", fontFamily:'"Dancing Script",cursive'}}>✦ portail shifting</p>
+        </div>
+      </div>
+
+      {/* animation de transition portail */}
+      {portalAnim && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center" style={{background:"rgba(20,10,40,0.85)", backdropFilter:"blur(8px)", animation:"fadeUp 0.3s ease"}}>
+          {Array.from({length:50}).map((_,i)=>(<span key={i} className="absolute" style={{top:`${Math.random()*100}%`, left:`${Math.random()*100}%`, fontSize:`${8+Math.random()*16}px`, opacity:0.8, animation:`twinkle ${0.8+Math.random()*1.2}s ease-in-out infinite`}}>{["✨","💫","⭐","🌟"][i%4]}</span>))}
+          <div className="text-center relative">
+            <div className="text-6xl mb-3" style={{animation:"floatY 1.4s ease-in-out infinite"}}>🔮</div>
+            <p className="text-xl" style={{fontFamily:'"Dancing Script",cursive', color:"#e0c0ff"}}>Le voile se lève...</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ JOURNAL LUNAIRE — parler à la Lune
+   ============================================================ */
+const MOON_ACTIONS = [
+  "🌊 Création d'eau de lune",
+  "💎 Rechargement de mes cristaux",
+  "🕯️ Rituel de manifestation",
+  "🍃 Rituel de bannissement",
+  "🌙 Méditation de shifting",
+  "📿 Tirage de cartes / oracle",
+  "🛁 Bain rituel",
+  "✍️ Écriture d'intentions",
+];
+function LunarJournal({ moon, entries, setEntries }) {
+  const [text, setText] = useState("");
+  const [actions, setActions] = useState({});
+  const [tab, setTab] = useState("write"); // write | archive
+  const isFull = moon.idx===4, isNew = moon.idx===0;
+
+  // ambiance selon la phase
+  const sky = isFull
+    ? "radial-gradient(circle at 50% 30%, #2a2a4a, #15152e 70%)"
+    : isNew
+    ? "radial-gradient(circle at 50% 40%, #0a0a18, #050510 80%)"
+    : "radial-gradient(circle at 50% 35%, #1a1a3a, #0d0d22 75%)";
+  const glow = isFull ? "0 0 40px rgba(220,220,255,0.4)" : isNew ? "0 0 20px rgba(120,120,180,0.15)" : "0 0 25px rgba(160,160,220,0.25)";
+
+  const save = () => {
+    const chosen = Object.keys(actions).filter(k=>actions[k]);
+    if (!text.trim() && chosen.length===0) return;
+    setEntries([{ id:uid(), date:new Date().toISOString().slice(0,10), phase:moon.name, phaseIdx:moon.idx, illum:moon.illum, text:text.trim(), actions:chosen }, ...entries]);
+    setText(""); setActions({});
+  };
+
+  return (
+    <div className="rounded-3xl overflow-hidden" style={{border:"1px solid var(--accent)"}}>
+      {/* en-tête céleste */}
+      <div className="relative p-6" style={{background:sky, minHeight:"60px"}}>
+        {/* étoiles */}
+        {Array.from({length:isNew?40:isFull?15:25}).map((_,i)=>(<span key={i} className="absolute rounded-full" style={{top:`${Math.random()*100}%`, left:`${Math.random()*100}%`, width:"2px", height:"2px", background:"#fff", opacity:0.7, animation:`twinkle ${1.5+Math.random()*2.5}s ease-in-out infinite`}}/>))}
+        {/* la lune */}
+        <div className="relative flex flex-col items-center text-center">
+          <div className="rounded-full mb-3 flex items-center justify-center" style={{width:"56px", height:"56px", background: isNew?"radial-gradient(circle at 60% 40%, #1a1a2e, #0a0a14)":isFull?"radial-gradient(circle at 40% 35%, #fff, #d8d8f0)":"radial-gradient(circle at 35% 40%, #e0e0f5, #50506a 60%, #1a1a2e)", boxShadow:glow}}>
+            {isNew && <span style={{fontSize:"10px", opacity:0.5}}>✦</span>}
+          </div>
+          <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"#e8e8ff"}}>Parler à la Lune</h3>
+          <p className="text-xs italic" style={{color:"#b0b0d8"}}>{moon.name} · {moon.illum}% illuminée</p>
+        </div>
+      </div>
+
+      {/* onglets */}
+      <div className="flex gap-2 p-3" style={{background:"var(--surface)"}}>
+        <button onClick={()=>setTab("write")} className="flex-1 py-2 rounded-lg text-xs" style={{background:tab==="write"?"var(--primary)":"var(--surface2)", color:tab==="write"?"var(--bg)":"var(--text)"}}>✍️ Confier à la Lune</button>
+        <button onClick={()=>setTab("archive")} className="flex-1 py-2 rounded-lg text-xs" style={{background:tab==="archive"?"var(--primary)":"var(--surface2)", color:tab==="archive"?"var(--bg)":"var(--text)"}}>🌙 Archive des cycles</button>
+      </div>
+
+      <div className="p-5" style={{background:"var(--surface)"}}>
+        {tab==="write" ? (<>
+          <textarea value={text} onChange={e=>setText(e.target.value)} rows={5} placeholder="Chère Lune, ce soir je ressens..."
+            className="w-full px-4 py-3 rounded-xl bg-transparent outline-none text-sm mb-4" style={{border:"1px solid var(--border)", color:"var(--text)", fontFamily:'"Caveat",cursive', fontSize:"18px"}}/>
+
+          <p className="text-xs uppercase tracking-widest mb-2" style={{color:"var(--muted)"}}>Registre des actions magiques</p>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {MOON_ACTIONS.map(a=>(
+              <button key={a} onClick={()=>setActions({...actions,[a]:!actions[a]})} className="text-left text-xs px-3 py-2 rounded-lg transition" style={{background:actions[a]?"var(--primary)":"var(--surface2)", color:actions[a]?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>
+                {actions[a]?"✓ ":""}{a}
+              </button>
+            ))}
+          </div>
+          <button onClick={save} className="w-full py-3 rounded-full text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ Confier à la Lune</button>
+        </>) : (
+          <div className="space-y-3">
+            {entries.length===0 && <p className="text-center italic py-6 text-sm" style={{color:"var(--muted)"}}>Aucune confidence encore. La Lune t'écoute ✦</p>}
+            {entries.map(e=>(
+              <div key={e.id} className="rounded-xl p-4" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>{e.phase}</span>
+                  <span className="text-[10px]" style={{color:"var(--muted)"}}>{e.date} · {e.illum}%</span>
+                </div>
+                {e.text && <p className="text-sm mb-2" style={{color:"var(--text)", fontFamily:'"Caveat",cursive', fontSize:"17px"}}>« {e.text} »</p>}
+                {e.actions?.length>0 && <div className="flex flex-wrap gap-1">{e.actions.map((a,i)=>(<span key={i} className="text-[10px] px-2 py-0.5 rounded-full" style={{background:"var(--surface)", color:"var(--accent)"}}>{a}</span>))}</div>}
+                <button onClick={()=>setEntries(entries.filter(x=>x.id!==e.id))} className="text-[10px] mt-2 underline" style={{color:"var(--muted)"}}>supprimer</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ ALCHIMIE DES CYCLES CROISÉS (astro natal + lune + cycle)
+   ============================================================ */
+const ZODIAC = [
+  {s:"Capricorne",el:"Terre",from:[12,22],to:[1,19]},
+  {s:"Verseau",el:"Air",from:[1,20],to:[2,18]},
+  {s:"Poissons",el:"Eau",from:[2,19],to:[3,20]},
+  {s:"Bélier",el:"Feu",from:[3,21],to:[4,19]},
+  {s:"Taureau",el:"Terre",from:[4,20],to:[5,20]},
+  {s:"Gémeaux",el:"Air",from:[5,21],to:[6,20]},
+  {s:"Cancer",el:"Eau",from:[6,21],to:[7,22]},
+  {s:"Lion",el:"Feu",from:[7,23],to:[8,22]},
+  {s:"Vierge",el:"Terre",from:[8,23],to:[9,22]},
+  {s:"Balance",el:"Air",from:[9,23],to:[10,22]},
+  {s:"Scorpion",el:"Eau",from:[10,23],to:[11,21]},
+  {s:"Sagittaire",el:"Feu",from:[11,22],to:[12,21]},
+];
+function sunSign(dateStr) {
+  if(!dateStr) return null;
+  const d = new Date(dateStr); const m=d.getMonth()+1, day=d.getDate();
+  for(const z of ZODIAC){ const[fm,fd]=z.from,[tm,td]=z.to;
+    if((m===fm&&day>=fd)||(m===tm&&day<=td)) return z;
+  }
+  return ZODIAC[0];
+}
+// lune natale approximative : cycle ~2.5j/signe depuis une éphéméride simplifiée
+function moonSign(dateStr) {
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  const days = Math.floor((d - new Date(2000,0,6))/86400000); // réf lune en Bélier ~6 jan 2000
+  const idx = ((Math.floor(days/2.466)%12)+12)%12;
+  // mapper sur ZODIAC en partant du Bélier (index 3)
+  const order=["Bélier","Taureau","Gémeaux","Cancer","Lion","Vierge","Balance","Scorpion","Sagittaire","Capricorne","Verseau","Poissons"];
+  const name=order[idx];
+  return ZODIAC.find(z=>z.s===name);
+}
+const ELEMENT_NEEDS = {
+  Terre:{need:"d'ancrage et de repos", advice:"privilégie le concret, la nature, le sommeil"},
+  Eau:{need:"d'émotion et d'introspection", advice:"écris, ressens, prends un bain rituel"},
+  Feu:{need:"d'action et de création", advice:"bouge, crée, ose un projet"},
+  Air:{need:"d'échange et de mental", advice:"écris tes idées, parle, apprends"},
+};
+
+function CrossedCycles({ profile, setProfile, moon, cycle }) {
+  const [edit, setEdit] = useState(!profile?.birthdate);
+  const p = profile || {};
+  const sun = sunSign(p.birthdate);
+  const moonNatal = moonSign(p.birthdate);
+  const todayMoonSign = moonSign(new Date().toISOString().slice(0,10));
+
+  // phase du cycle menstruel
+  let cyclePhase = null;
+  if (cycle?.lastPeriod) {
+    const days = Math.floor((Date.now()-new Date(cycle.lastPeriod))/86400000) % (cycle.cycleLength||28);
+    cyclePhase = days<=(cycle.periodLength||5) ? "règles" : days<14 ? "folliculaire" : days<17 ? "ovulation" : "lutéale (fin de cycle)";
+  }
+
+  // diagnostic
+  const diag = (()=>{
+    if(!sun) return null;
+    const needEl = todayMoonSign?.el || "Eau";
+    const need = ELEMENT_NEEDS[needEl];
+    const tired = cyclePhase==="lutéale (fin de cycle)" || cyclePhase==="règles";
+    let txt = `Ta lune natale est en ${moonNatal?.s} (${moonNatal?.el}), ton soleil en ${sun.s}. `;
+    txt += `Aujourd'hui, la Lune (${moon?.name}) traverse ${todayMoonSign?.s} — une énergie ${needEl}. `;
+    if (cyclePhase) txt += `Tu es en phase ${cyclePhase}. `;
+    if (tired) txt += `Ton corps réclame ${ELEMENT_NEEDS.Terre.need}. Ne force pas le voyage astral ce soir — privilégie l'écriture douce dans ton Journal Intime. 🌿`;
+    else if (moon?.idx===4) txt += `Pleine Lune : énergie maximale, idéale pour libérer et manifester. ✨`;
+    else txt += `Bon moment pour ${need.advice}.`;
+    return txt;
+  })();
+
+  if (edit) return (
+    <div className="rounded-2xl p-6 max-w-md mx-auto" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+      <h3 className="text-2xl mb-1 text-center" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🔮 Mon thème astral</h3>
+      <p className="text-xs italic mb-4 text-center" style={{color:"var(--muted)"}}>Pour des diagnostics calculés rien que pour toi</p>
+      <div className="space-y-3">
+        <div>
+          <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Date de naissance</label>
+          <input type="date" value={p.birthdate||""} onChange={e=>setProfile({...p, birthdate:e.target.value})} className="w-full mt-1 px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Heure de naissance (optionnel)</label>
+          <input type="time" value={p.birthtime||""} onChange={e=>setProfile({...p, birthtime:e.target.value})} className="w-full mt-1 px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Lieu de naissance (optionnel)</label>
+          <input value={p.birthplace||""} onChange={e=>setProfile({...p, birthplace:e.target.value})} placeholder="ville..." className="w-full mt-1 px-3 py-2 rounded-lg bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+        </div>
+        <button onClick={()=>setEdit(false)} disabled={!p.birthdate} className="w-full py-2 rounded-full text-sm disabled:opacity-40" style={{background:"var(--primary)", color:"var(--bg)"}}>✦ calculer mon profil</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl p-6" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🔮 Mon alchimie du jour</h3>
+        <button onClick={()=>setEdit(true)} className="text-xs underline" style={{color:"var(--muted)"}}>modifier mon thème</button>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+        <div className="rounded-xl p-2" style={{background:"var(--surface)"}}><p className="text-[9px] uppercase" style={{color:"var(--muted)"}}>Soleil</p><p className="text-sm" style={{color:"var(--accent)"}}>{sun?.s}</p><p className="text-[9px]" style={{color:"var(--muted)"}}>{sun?.el}</p></div>
+        <div className="rounded-xl p-2" style={{background:"var(--surface)"}}><p className="text-[9px] uppercase" style={{color:"var(--muted)"}}>Lune natale</p><p className="text-sm" style={{color:"var(--accent)"}}>{moonNatal?.s}</p><p className="text-[9px]" style={{color:"var(--muted)"}}>{moonNatal?.el}</p></div>
+        <div className="rounded-xl p-2" style={{background:"var(--surface)"}}><p className="text-[9px] uppercase" style={{color:"var(--muted)"}}>Cycle</p><p className="text-sm" style={{color:"var(--accent)"}}>{cyclePhase||"—"}</p></div>
+      </div>
+      <div className="rounded-xl p-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+        <p className="text-sm leading-relaxed" style={{color:"var(--text)", fontFamily:'"Cormorant Garamond",serif', fontSize:"16px"}}>{diag}</p>
+      </div>
+      {!cycle?.lastPeriod && <p className="text-[10px] italic mt-2 text-center" style={{color:"var(--muted)"}}>💡 Renseigne ton cycle (Yasmine → Cycle) pour un diagnostic encore plus précis</p>}
+      <p className="text-[9px] italic mt-2 text-center" style={{color:"var(--muted)"}}>✦ calculs approximatifs basés sur ta date de naissance</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   ✦ ROOM UPGRADES — décor débloqué par les succès réels
+   ============================================================ */
+function RoomDecor({ unlocked }) {
+  // overlay décoratif par-dessus une pièce (vines, candles, fairies, stars, crystals)
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{zIndex:5}}>
+      {/* lierre grimpant sur les bords */}
+      {unlocked.includes("vines") && (<>
+        <div className="absolute top-0 left-0 text-2xl" style={{lineHeight:1}}>🌿<br/>🍃<br/>🌿</div>
+        <div className="absolute top-0 right-0 text-2xl text-right" style={{lineHeight:1}}>🌿<br/>🍃<br/>🌿</div>
+      </>)}
+      {/* bougies en bas */}
+      {unlocked.includes("candles") && (<>
+        <span className="absolute" style={{bottom:"3%", left:"6%", fontSize:"20px", animation:"twinkle 3s ease-in-out infinite"}}>🕯️</span>
+        <span className="absolute" style={{bottom:"3%", right:"6%", fontSize:"20px", animation:"twinkle 3.5s ease-in-out infinite"}}>🕯️</span>
+      </>)}
+      {/* fées qui volent */}
+      {unlocked.includes("fairies") && Array.from({length:3}).map((_,i)=>(
+        <span key={i} className="absolute" style={{top:`${20+i*22}%`, left:`${10+i*30}%`, fontSize:"14px", animation:`floatY ${3+i}s ease-in-out infinite`, animationDelay:`${i*0.6}s`}}>🧚</span>
+      ))}
+      {/* étoiles scintillantes */}
+      {unlocked.includes("stars") && Array.from({length:8}).map((_,i)=>(
+        <span key={"s"+i} className="absolute" style={{top:`${Math.random()*60}%`, left:`${Math.random()*100}%`, fontSize:"10px", animation:`twinkle ${1.5+Math.random()*2}s ease-in-out infinite`}}>✨</span>
+      ))}
+      {/* cristaux dans les coins */}
+      {unlocked.includes("crystals") && (<>
+        <span className="absolute" style={{bottom:"20%", left:"3%", fontSize:"18px", filter:"drop-shadow(0 0 6px #c0a0e8)"}}>🔮</span>
+        <span className="absolute" style={{top:"30%", right:"3%", fontSize:"16px", filter:"drop-shadow(0 0 6px #a0e0d0)"}}>💎</span>
+      </>)}
+    </div>
+  );
+}
+
+function RoomProgress({ points, level, tiers, nextTier }) {
+  const cur = tiers[level];
+  const pct = nextTier ? Math.round(((points - cur.pts) / (nextTier.pts - cur.pts)) * 100) : 100;
+  const LABELS = { vines:"🌿 lierre grimpant", candles:"🕯️ bougies", fairies:"🧚 fées", stars:"✨ étoiles", crystals:"🔮 cristaux" };
+  return (
+    <div className="rounded-2xl p-4 mb-4" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+      <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+        <h4 className="text-lg" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>✦ {cur.name}</h4>
+        <span className="text-xs" style={{color:"var(--muted)"}}>{points} pts magiques · niv. {level+1}</span>
+      </div>
+      {nextTier ? (
+        <>
+          <div className="h-2 rounded-full overflow-hidden mb-1" style={{background:"var(--surface)"}}>
+            <div className="h-full rounded-full transition-all" style={{width:`${pct}%`, background:"var(--primary)"}}/>
+          </div>
+          <p className="text-[11px]" style={{color:"var(--muted)"}}>Encore <b style={{color:"var(--accent)"}}>{nextTier.pts-points} pts</b> pour débloquer {LABELS[nextTier.unlock]||"un décor"}</p>
+        </>
+      ) : <p className="text-[11px]" style={{color:"var(--accent)"}}>✦ Tous les décors débloqués ! Ton royaume est complet 🌙</p>}
+      <p className="text-[10px] italic mt-2" style={{color:"var(--muted)"}}>Gagne des points en validant tes tâches, habitudes, journal, rituels... ton succès réel décore ton app.</p>
+    </div>
   );
 }
 
@@ -4385,6 +5398,9 @@ export default function App() {
           if (data.lifeOst) setLifeOst(data.lifeOst);
           if (data.manifestSeeds) setManifestSeeds(data.manifestSeeds);
           if (data.fairyData) setFairyData(data.fairyData);
+          if (data.lunarLog) setLunarLog(data.lunarLog);
+          if (data.shiftLog) setShiftLog(data.shiftLog);
+          if (data.astroProfile) setAstroProfile(data.astroProfile);
           if (data.activeDR) setActiveDR(data.activeDR);
           if (data.habits) setHabits(data.habits);
           if (data.dreamLog) setDreamLog(data.dreamLog);
@@ -4426,7 +5442,17 @@ export default function App() {
   const [sectionThemes, setSectionThemes] = useState({ moi:"myUniverse", witch:"witchPurple" });
   // le thème affiché dépend UNIQUEMENT du côté actif → changer un côté ne touche jamais l'autre
   const theme = sectionThemes[activeSection] || (activeSection==="witch" ? "witchPurple" : "myUniverse");
-  const setTheme = (t) => setSectionThemes(prev => ({ ...prev, [activeSection]: t }));
+  const setTheme = (t) => {
+    setSectionThemes(prev => ({ ...prev, [activeSection]: t }));
+    // en changeant le thème du côté, on efface les surcharges de couleur/fond de la SECTION
+    // pour que le nouveau thème s'affiche pleinement (les surcharges par sous-page restent)
+    setOverrides(prev => {
+      const c = { ...prev };
+      const secKey = `sec:${activeSection}`;
+      if (c[secKey]) { const { colors, backdrop, ...rest } = c[secKey]; if (Object.keys(rest).length) c[secKey]=rest; else delete c[secKey]; }
+      return c;
+    });
+  };
   const [sections, setSections] = useState([{id:"moi",name:"Yasmine",custom:false},{id:"witch",name:"Yasmeen",custom:false}]);
   const [overrides, setOverrides] = useState({}); // {"sec:moi":{backdrop,colors}, "sub:witch:dreams":{...}}
   const [customThemes, setCustomThemes] = useState({}); // thèmes générés par l'utilisatrice
@@ -4455,6 +5481,9 @@ export default function App() {
   const [lifeOst, setLifeOst] = useState({});
   const [manifestSeeds, setManifestSeeds] = useState([]);
   const [fairyData, setFairyData] = useState({});
+  const [lunarLog, setLunarLog] = useState([]);
+  const [shiftLog, setShiftLog] = useState([]);
+  const [astroProfile, setAstroProfile] = useState({});
   const [activeDR, setActiveDR] = useState(null);
   const [habits, setHabits] = useState([{id:uid(),name:"Boire 2L d'eau",days:{}},{id:uid(),name:"Méditer 10 min",days:{}},{id:uid(),name:"Skincare soir",days:{}}]);
   const [dreamLog, setDreamLog] = useState([]);
@@ -4476,12 +5505,12 @@ export default function App() {
         appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops,
         tasks, widgets, scrapPages, journalPin, grimoireEntries,
         shiftingNotes, astralNotes, passions, wishlist, goals,
-        gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, activeDR, habits, dreamLog, tarotLog, intentions,
+        gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions,
         customRituals, customTips, customAffirm,
       });
     }, 1000);
     return ()=>clearTimeout(t);
-  }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, activeDR, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
+  }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
 
   const ALL_THEMES = useMemo(()=>({ ...THEMES, ...customThemes }), [customThemes]);
   const themeObj = ALL_THEMES[theme] || THEMES.myUniverse;
@@ -4517,6 +5546,33 @@ export default function App() {
   const herbOfDay=pickByDate(HERBS,"herb");
   const dayTip=dayOfWeekTip();
   const moon=moonPhase();
+
+  // ✦ POINTS MAGIQUES — succès réels → décor débloqué
+  const magicPoints = useMemo(()=>{
+    let pts = 0;
+    pts += tasks.filter(t=>t.done).length * 2;
+    pts += habits.reduce((a,h)=>a+(h.log?Object.values(h.log).filter(Boolean).length:0),0);
+    pts += (scrapPages?.length||0) * 3;
+    pts += gratitude.length * 2;
+    pts += (moodLog?.length||0);
+    pts += grimoireEntries.length * 3;
+    pts += (lunarLog?.length||0) * 3;
+    pts += (shiftLog?.length||0) * 3;
+    pts += goals.filter(g=>g.done).length * 5;
+    pts += ((fairyData?.garden?.plants?.length)||0) * 4;
+    return pts;
+  }, [tasks, habits, scrapPages, gratitude, moodLog, grimoireEntries, lunarLog, shiftLog, goals, fairyData]);
+  const ROOM_TIERS = [
+    {pts:0,   name:"Cocon simple",      unlock:""},
+    {pts:30,  name:"Première étincelle", unlock:"vines"},
+    {pts:70,  name:"Coin chaleureux",    unlock:"candles"},
+    {pts:130, name:"Refuge enchanté",    unlock:"fairies"},
+    {pts:210, name:"Sanctuaire magique", unlock:"stars"},
+    {pts:320, name:"Royaume personnel",  unlock:"crystals"},
+  ];
+  const roomLevel = ROOM_TIERS.filter(t=>magicPoints>=t.pts).length-1;
+  const unlocked = ROOM_TIERS.slice(0,roomLevel+1).map(t=>t.unlock).filter(Boolean);
+  const nextTier = ROOM_TIERS[roomLevel+1];
 
   const secWidgets = widgets[activeSection] || [];
   const setSecWidgets = (list) => setWidgets({ ...widgets, [activeSection]: list });
@@ -4580,6 +5636,7 @@ export default function App() {
         @keyframes shake {0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
         @keyframes pingOnce {0%{box-shadow:0 0 0 0 var(--primary)}100%{box-shadow:0 0 0 14px transparent}}
         @keyframes fadeUp {0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+        .richnote:empty:before { content: attr(data-ph); opacity:0.4; white-space:pre-line; }
         @keyframes spinSlow {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
         @keyframes glow {0%,100%{box-shadow:0 0 20px rgba(var(--glow),0.2)}50%{box-shadow:0 0 40px rgba(var(--glow),0.5)}}
         .animate-shake{animation:shake .4s ease}.animate-ping-once{animation:pingOnce .6s ease}
@@ -4641,7 +5698,7 @@ export default function App() {
             dr.sections = dr.sections.map(s=> s.id==="general" ? {...s, content:`Univers inspiré de : ${p.title||""}\n${p.note||""}`} : s);
             setShiftingNotes([dr, ...shiftingNotes]);
             setActiveSection("witch"); setActiveSub("shifting");
-          }}/>}
+          }} decor={unlocked} roomProgress={<RoomProgress points={magicPoints} level={roomLevel} tiers={ROOM_TIERS} nextTier={nextTier}/>}/>}
           {activeSub==="wishlist" && <CardList items={wishlist} setItems={setWishlist} title="Wishlist" fields={[{k:"title",label:"Objet"},{k:"price",label:"Prix"},{k:"priority",label:"Priorité"},{k:"url",label:"Lien"},{k:"image",label:"Image URL"}]}/>}
           {activeSub==="gratitude" && <GratitudeJournal entries={gratitude} setEntries={setGratitude}/>}
           {activeSub==="mood" && <MoodTracker log={moodLog} setLog={setMoodLog}/>}
@@ -4699,7 +5756,17 @@ export default function App() {
             <button key={t.k} onClick={()=>setActiveSub(t.k)} className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-all whitespace-nowrap" style={{background:activeSub===t.k?"var(--primary)":"var(--surface)", color:activeSub===t.k?"var(--bg)":"var(--text)", border:activeSub===t.k?"1px solid var(--primary)":"1px solid var(--border)", fontFamily:activeSub===t.k?'"Dancing Script",cursive':"inherit"}}><I size={14}/>{t.label}</button>
           )})}</div>
 
-          {activeSub==="tavern" && (<div className="grid lg:grid-cols-3 gap-6">
+          {activeSub==="tavern" && (<div className="space-y-6">
+            <RoomProgress points={magicPoints} level={roomLevel} tiers={ROOM_TIERS} nextTier={nextTier}/>
+            <MysticGreenhouse
+              lastMood={moodLog[0]}
+              plantsCount={(fairyData?.garden?.plants?.length)||0}
+              decor={unlocked}
+              onCauldron={()=>setActiveSub("mood")}
+              onPortal={()=>setActiveSub("shifting")}
+              onHerbs={()=>setActiveSub("fairy")}
+            />
+            <div className="grid lg:grid-cols-3 gap-6">
             <div className="rounded-2xl p-6 text-center animate-glow" style={{background:"linear-gradient(180deg, var(--surface2), var(--primary))", border:"3px double var(--accent)", color:"var(--text)"}}>
               {witchEdit ? (<>
                 <input value={witchTexts.spellNo} onChange={e=>setWitchTexts({...witchTexts, spellNo:e.target.value})} className="text-center bg-black/10 rounded outline-none text-xs uppercase tracking-[0.3em] w-full mb-1" style={{color:"var(--text)"}}/>
@@ -4735,6 +5802,15 @@ export default function App() {
               <MoonSpiral/>
               <ManifestBox seeds={manifestSeeds} setSeeds={setManifestSeeds}/>
             </div>
+            </div>
+          </div>)}
+
+          {activeSub==="mood" && (<div>
+            <div className="text-center mb-4">
+              <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🫧 Mon chaudron d'humeur</h3>
+              <p className="text-xs italic" style={{color:"var(--muted)"}}>Verse tes émotions dans le chaudron</p>
+            </div>
+            <MoodTracker log={moodLog} setLog={setMoodLog}/>
           </div>)}
 
           {activeSub==="moon" && (<div className="grid md:grid-cols-2 gap-6">
@@ -4752,6 +5828,7 @@ export default function App() {
                   <p className="font-bold mb-1" style={{color:"var(--accent)"}}>{p.name}</p><p className="italic">{p.energy}</p></div>
               ))}</div>
             </div>
+            <div className="md:col-span-2"><LunarJournal moon={moon} entries={lunarLog} setEntries={setLunarLog}/></div>
           </div>)}
 
           {activeSub==="wheel" && <WheelOfYear/>}
@@ -4797,11 +5874,14 @@ export default function App() {
 
           {activeSub==="tarot" && <CardList items={tarotLog} setItems={setTarotLog} title="Journal de tirages" fields={[{k:"title",label:"Date/contexte"},{k:"deck",label:"Jeu"},{k:"question",label:"Question"},{k:"cards",label:"Cartes",multi:true},{k:"interpretation",label:"Interprétation",multi:true,big:true}]}/>}
 
-          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes}/>}
+          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes} shiftLog={shiftLog} setShiftLog={setShiftLog} moon={moon}/>}
           {activeSub==="anchor" && <RealityAnchor drs={shiftingNotes}/>}
           {activeSub==="fairy" && <FairyRealm data={fairyData} setData={setFairyData}/>}
 
-          {activeSub==="astral" && <CardList items={astralNotes} setItems={setAstralNotes} title="Voyages astraux & expériences" fields={[{k:"title",label:"Date/titre"},{k:"type",label:"Type (OBE, lucide)"},{k:"sensations",label:"Sensations",multi:true},{k:"content",label:"Récit",multi:true,big:true}]}/>}
+          {activeSub==="astral" && (<div className="space-y-6">
+            <CrossedCycles profile={astroProfile} setProfile={setAstroProfile} moon={moon} cycle={cycleData}/>
+            <CardList items={astralNotes} setItems={setAstralNotes} title="Voyages astraux & expériences" fields={[{k:"title",label:"Date/titre"},{k:"type",label:"Type (OBE, lucide)"},{k:"sensations",label:"Sensations",multi:true},{k:"content",label:"Récit",multi:true,big:true}]}/>
+          </div>)}
 
           {activeSub==="dreams" && <DreamJournal entries={dreamLog} setEntries={setDreamLog}/>}
 
