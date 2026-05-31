@@ -965,9 +965,9 @@ function Widget({ widget, onUpdate, onDelete }) {
             </label>
           )}</>)}
         {widget.type==="playlist" && (<>
-          {widget.content?.includes("spotify") ?
-            <iframe title="sp" src={widget.content.replace("/track/","/embed/track/").replace("/playlist/","/embed/playlist/").replace("/album/","/embed/album/")} width="100%" height="152" frameBorder="0" allow="encrypted-media" className="rounded-xl"/> :
-            <div className="text-xs italic" style={{color:"var(--muted)"}}>{widget.content ? <a href={widget.content} target="_blank" rel="noreferrer" className="underline">Ouvrir le lien</a> : "Colle un lien Spotify ↓"}</div>}
+          {widget.content?.includes("spotify")
+            ? <VinylPlayer link={widget.content} label="ma playlist"/>
+            : <div className="text-xs italic" style={{color:"var(--muted)"}}>{widget.content ? <a href={widget.content} target="_blank" rel="noreferrer" className="underline">Ouvrir le lien</a> : "Colle un lien Spotify ↓"}</div>}
           <input value={widget.content||""} onChange={e=>onUpdate({...widget, content:e.target.value})} placeholder="lien Spotify / SoundCloud"
             className="mt-2 w-full bg-transparent text-xs outline-none border-b py-1" style={{borderColor:"var(--border)", color:"var(--text)"}}/></>)}
         {widget.type==="pinterest" && (<>
@@ -1244,6 +1244,119 @@ function RichNote({ page, updatePage }) {
           className="richnote w-full bg-transparent outline-none"
           style={{ minHeight:"400px", lineHeight:"1.5", fontFamily:nf.stack, fontSize:"21px", color:paper.ink }}/>
       </div>
+    </div>
+  );
+}
+
+// helper global : compresse un fichier image en dataURL
+function fileToCompressedDataUrl(file, max=1000, quality=0.8) {
+  return new Promise((resolve)=>{
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let {width:w, height:h} = img;
+        if (w>max || h>max) { const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+        const c = document.createElement("canvas"); c.width=w; c.height=h;
+        c.getContext("2d").drawImage(img,0,0,w,h);
+        resolve(c.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(r.result);
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+/* ============================================================
+   ✦ VINYL PLAYER — tourne-disque + lecteur Spotify
+   ============================================================ */
+function spotifyEmbedUrl(link) {
+  if (!link) return null;
+  if (!link.includes("spotify")) return null;
+  return link
+    .replace("/intl-fr/","/").replace("/intl-en/","/")
+    .replace("/track/","/embed/track/")
+    .replace("/playlist/","/embed/playlist/")
+    .replace("/album/","/embed/album/")
+    .replace("/artist/","/embed/artist/")
+    .split("?")[0];
+}
+function VinylPlayer({ link, cover, label="ma playlist", onChangeLink }) {
+  const [spinning, setSpinning] = useState(false);
+  const [showPlayer, setShowPlayer] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(link||"");
+  const embed = spotifyEmbedUrl(link);
+
+  // si pas de lien (et qu'on peut en saisir un) → champ de saisie
+  if ((!embed || editing) && onChangeLink) {
+    return (
+      <div className="rounded-2xl p-4 my-4" style={{background:"var(--surface)", border:"1px dashed var(--accent)"}}>
+        <p className="text-xs mb-2" style={{color:"var(--accent)", fontFamily:'"Dancing Script",cursive', fontSize:"16px"}}>🎶 Ajoute ta playlist Spotify</p>
+        <div className="flex gap-2">
+          <input value={draft} onChange={e=>setDraft(e.target.value)} placeholder="colle le lien Spotify (playlist, album, titre)..."
+            className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+          <button onClick={()=>{ onChangeLink(draft.trim()); setEditing(false); }} disabled={!draft.trim()} className="px-3 rounded-lg text-sm disabled:opacity-40" style={{background:"var(--primary)", color:"var(--bg)"}}>✦</button>
+          {editing && <button onClick={()=>{ setDraft(link||""); setEditing(false); }} className="px-3 rounded-lg text-xs" style={{background:"var(--surface2)", color:"var(--text)"}}>annuler</button>}
+        </div>
+        <p className="text-[10px] italic mt-2" style={{color:"var(--muted)"}}>Ensuite, ton vinyle apparaîtra et tournera avec ta musique 🪩</p>
+      </div>
+    );
+  }
+  if (!embed) return null;
+
+  return (
+    <div className="rounded-2xl p-4 my-4" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+      <div className="flex items-center gap-4">
+        {/* platine vinyle */}
+        <button onClick={()=>{ setSpinning(s=>!s); setShowPlayer(true); }} className="relative flex-shrink-0" style={{width:"90px", height:"90px"}} title={spinning?"pause visuelle":"faire tourner"}>
+          <div className="absolute inset-0 rounded-full" style={{
+            background: cover
+              ? `radial-gradient(circle at 50% 50%, transparent 26%, rgba(0,0,0,0.15) 27%), url(${cover}) center/cover`
+              : "repeating-radial-gradient(circle at 50% 50%, #1a1a1e 0px, #1a1a1e 2px, #2a2a30 3px, #1a1a1e 4px)",
+            boxShadow:"0 4px 14px rgba(0,0,0,0.4)",
+            animation: spinning ? "spin 3s linear infinite" : "none"
+          }}>
+            <div className="absolute rounded-full" style={{inset:"34%", background:"var(--primary)", display:"flex", alignItems:"center", justifyContent:"center"}}>
+              <div className="rounded-full" style={{width:"6px", height:"6px", background:"var(--bg)"}}/>
+            </div>
+          </div>
+          <div className="absolute inset-0 rounded-full pointer-events-none" style={{background:"linear-gradient(135deg, rgba(255,255,255,0.18), transparent 50%)"}}/>
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)", fontSize:"18px"}}>♫ {label}</p>
+            {onChangeLink && <button onClick={()=>{ setDraft(link||""); setEditing(true); }} title="modifier la playlist" style={{color:"var(--muted)"}}>✏️</button>}
+          </div>
+          <p className="text-[11px] italic mb-2" style={{color:"var(--muted)"}}>{spinning?"ça tourne... 🎶":"touche le vinyle pour lancer"}</p>
+          <button onClick={()=>{ setSpinning(s=>!s); setShowPlayer(true); }} className="px-3 py-1.5 rounded-full text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>
+            {spinning ? "⏸ pause" : "▶ lancer"}
+          </button>
+        </div>
+      </div>
+
+      {showPlayer && (
+        <div className="mt-3 rounded-xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
+          <iframe title="vinyl-spotify" src={embed+"?utm_source=nyx"} width="100%" height="152" frameBorder="0" allow="autoplay; encrypted-media" loading="lazy"/>
+        </div>
+      )}
+      {!showPlayer && <p className="text-[10px] italic mt-2" style={{color:"var(--muted)"}}>💡 le lecteur Spotify s'ouvre au clic (pause, suivant, volume dedans)</p>}
+    </div>
+  );
+}
+
+// petit champ image : URL + bouton galerie
+function ImgPicker({ value, onChange, placeholder="URL image", small=false }) {
+  return (
+    <div className="flex gap-1 items-center">
+      <input value={value && value.startsWith("data:") ? "" : (value||"")} onChange={e=>onChange(e.target.value)}
+        placeholder={value && value.startsWith("data:") ? "✓ image galerie" : placeholder}
+        className={`flex-1 bg-transparent outline-none ${small?"text-[9px]":"text-xs"}`} style={{color:"var(--text)", borderBottom:"1px solid var(--border)", padding:"2px 0"}}/>
+      <label className={`cursor-pointer rounded-full flex-shrink-0 flex items-center justify-center ${small?"px-1.5 py-0.5 text-[9px]":"px-2 py-1 text-[10px]"}`} style={{background:"var(--primary)", color:"var(--bg)"}}>
+        🖼️
+        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f); onChange(d); e.target.value=""; }}/>
+      </label>
     </div>
   );
 }
@@ -1611,8 +1724,7 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
             {open.image
               ? <img src={open.image} alt="" className="w-full rounded-xl object-cover" style={{maxHeight:"360px"}}/>
               : <div className="w-full rounded-xl flex items-center justify-center text-5xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>🎬</div>}
-            <input value={open.image||""} onChange={e=>update(open.id,{image:e.target.value})} placeholder="URL couverture"
-              className="mt-2 w-full text-xs px-2 py-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+            <div className="mt-2"><ImgPicker value={open.image} onChange={v=>update(open.id,{image:v})} placeholder="URL couverture"/></div>
           </div>
           <div className="md:w-2/3 p-5 space-y-3">
             <input value={open.title||""} onChange={e=>update(open.id,{title:e.target.value})} placeholder="Titre"
@@ -3014,9 +3126,8 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
         </div>
         <div className="grid sm:grid-cols-3 gap-3 p-4" style={{background:"var(--surface)"}}>
           <div>
-            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>URL couverture</label>
-            <input value={dr.cover} onChange={e=>onUpdate({cover:e.target.value})} placeholder="https://..."
-              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Couverture</label>
+            <div className="mt-1"><ImgPicker value={dr.cover} onChange={v=>onUpdate({cover:v})} placeholder="URL couverture"/></div>
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Tag / catégorie</label>
@@ -3024,24 +3135,14 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
               className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Playlist (Spotify)</label>
-            <input value={dr.playlist} onChange={e=>onUpdate({playlist:e.target.value})} placeholder="lien Spotify"
-              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
-          </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Blason / icône (URL)</label>
-            <input value={dr.crest||""} onChange={e=>onUpdate({crest:e.target.value})} placeholder="petit logo affiché en haut"
-              className="w-full text-xs px-2 py-1 mt-1 rounded bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+            <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Blason / icône</label>
+            <div className="mt-1"><ImgPicker value={dr.crest} onChange={v=>onUpdate({crest:v})} placeholder="petit logo en haut"/></div>
           </div>
         </div>
       </div>
 
-      {/* Playlist embed */}
-      {dr.playlist?.includes("spotify") && (
-        <div className="rounded-2xl overflow-hidden mb-6" style={{border:"1px solid var(--border)"}}>
-          <iframe title="dr-playlist" src={dr.playlist.replace("/track/","/embed/track/").replace("/playlist/","/embed/playlist/").replace("/album/","/embed/album/")} width="100%" height="80" frameBorder="0" allow="encrypted-media"/>
-        </div>
-      )}
+      {/* Playlist — tourne-disque */}
+      <VinylPlayer link={dr.playlist} cover={dr.cover} label={dr.name ? `playlist de ${dr.name}` : "ma playlist"} onChangeLink={(v)=>onUpdate({playlist:v})}/>
 
       {/* Layout : barre latérale sections + contenu */}
       <div className="grid md:grid-cols-4 gap-4">
@@ -3103,8 +3204,7 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
                 ? <img src={g.url} alt="" className="w-full object-cover" style={{aspectRatio:"1"}}/>
                 : <div className="w-full flex items-center justify-center text-3xl" style={{aspectRatio:"1", background:"var(--surface2)"}}>🖼️</div>}
               <div className="p-2" style={{background:"var(--surface2)"}}>
-                <input value={g.url} onChange={e=>updateGalleryImg(g.id,{url:e.target.value})} placeholder="URL image"
-                  className="w-full text-[10px] px-1 py-0.5 rounded bg-transparent outline-none mb-1" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+                <div className="mb-1"><ImgPicker value={g.url} onChange={v=>updateGalleryImg(g.id,{url:v})} placeholder="URL image" small/></div>
                 <input value={g.caption} onChange={e=>updateGalleryImg(g.id,{caption:e.target.value})} placeholder="légende..."
                   className="w-full text-xs px-1 py-0.5 rounded bg-transparent outline-none italic" style={{color:"var(--muted)"}}/>
               </div>
@@ -3161,7 +3261,7 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
                 <div key={w.id} className="group relative rounded-xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
                   {w.img ? <img src={w.img} alt="" className="w-full object-cover" style={{aspectRatio:"3/4"}}/> : <div className="w-full flex items-center justify-center text-2xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>👗</div>}
                   <div className="p-1.5" style={{background:"var(--surface2)"}}>
-                    <input value={w.img} onChange={e=>onUpdate({wardrobe:dr.wardrobe.map(x=>x.id===w.id?{...x,img:e.target.value}:x)})} placeholder="URL" className="w-full text-[9px] bg-transparent outline-none mb-0.5" style={{color:"var(--muted)"}}/>
+                    <div className="mb-0.5"><ImgPicker value={w.img} onChange={v=>onUpdate({wardrobe:dr.wardrobe.map(x=>x.id===w.id?{...x,img:v}:x)})} placeholder="URL" small/></div>
                     <input value={w.name} onChange={e=>onUpdate({wardrobe:dr.wardrobe.map(x=>x.id===w.id?{...x,name:e.target.value}:x)})} placeholder="nom" className="w-full text-[11px] bg-transparent outline-none" style={{color:"var(--text)"}}/>
                   </div>
                   <button onClick={()=>onUpdate({wardrobe:dr.wardrobe.filter(x=>x.id!==w.id)})} className="absolute top-1 right-1 p-0.5 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={10}/></button>
@@ -3281,7 +3381,7 @@ function DRSocialGraph({ dr, onUpdate }) {
               {p.img ? <img src={p.img} alt="" className="w-12 h-12 rounded-full object-cover" style={{border:`2px solid ${lvl.color}`}}/> : <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl" style={{background:"var(--surface)"}}>{lvl.emoji}</div>}
               <div className="flex-1 min-w-0">
                 <input value={p.name} onChange={e=>upd(p.id,{name:e.target.value})} placeholder="nom du personnage" className="w-full bg-transparent outline-none text-sm" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)", fontSize:"16px"}}/>
-                <input value={p.img} onChange={e=>upd(p.id,{img:e.target.value})} placeholder="URL photo" className="w-full bg-transparent outline-none text-[9px]" style={{color:"var(--muted)"}}/>
+                <div><ImgPicker value={p.img} onChange={v=>upd(p.id,{img:v})} placeholder="URL photo" small/></div>
               </div>
               <button onClick={()=>onUpdate({people:people.filter(x=>x.id!==p.id)})} className="opacity-0 group-hover:opacity-100" style={{color:"var(--muted)"}}><X size={14}/></button>
             </div>
@@ -3340,7 +3440,7 @@ function DRMap({ dr, onUpdate }) {
               <button onClick={()=>{ onUpdate({places:places.filter(x=>x.id!==cur.id)}); setOpen(null); }} style={{color:"var(--muted)"}}><Trash2 size={14}/></button>
             </div>
             <textarea value={cur.desc} onChange={e=>upd(cur.id,{desc:e.target.value})} rows={2} placeholder="ambiance, description du lieu..." className="w-full bg-transparent outline-none text-sm mb-2" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
-            <input value={cur.moodboard} onChange={e=>upd(cur.id,{moodboard:e.target.value})} placeholder="URL image d'ambiance" className="w-full bg-transparent outline-none text-xs mb-2" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--text)"}}/>
+            <div className="mb-2"><ImgPicker value={cur.moodboard} onChange={v=>upd(cur.id,{moodboard:v})} placeholder="URL image d'ambiance"/></div>
             <input value={cur.sound} onChange={e=>upd(cur.id,{sound:e.target.value})} placeholder="lien son d'ambiance (Spotify, YouTube...)" className="w-full bg-transparent outline-none text-xs mb-2" style={{border:"1px solid var(--border)", borderRadius:"8px", padding:"6px", color:"var(--accent)"}}/>
             {cur.sound?.includes("spotify") && <iframe title="amb" src={cur.sound.replace("/track/","/embed/track/").replace("/playlist/","/embed/playlist/")} width="100%" height="80" frameBorder="0" allow="encrypted-media" className="rounded-lg"/>}
             {cur.sound && !cur.sound.includes("spotify") && <a href={cur.sound} target="_blank" rel="noreferrer" className="text-xs underline" style={{color:"var(--accent)"}}>▶ ouvrir l'ambiance sonore</a>}
@@ -4194,7 +4294,7 @@ function ComfortCharacters({ items, setItems }) {
         {open.img && <img src={open.img} alt="" className="w-28 h-28 rounded-full object-cover mx-auto" style={{border:"2px solid var(--accent)"}}/>}
         <input value={open.name} onChange={e=>update(open.id,{name:e.target.value})} placeholder="Nom du personnage" className="w-full text-2xl text-center bg-transparent outline-none" style={{fontFamily:'"Dancing Script",cursive', color:"var(--text)"}}/>
         <input value={open.show} onChange={e=>update(open.id,{show:e.target.value})} placeholder="Série / film / anime" className="w-full text-sm text-center bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"6px"}}/>
-        <input value={open.img} onChange={e=>update(open.id,{img:e.target.value})} placeholder="URL image" className="w-full text-xs bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"6px"}}/>
+        <div><ImgPicker value={open.img} onChange={v=>update(open.id,{img:v})} placeholder="URL image"/></div>
         <input value={open.traits} onChange={e=>update(open.id,{traits:e.target.value})} placeholder="Ce que tu aimes chez lui/elle" className="w-full text-sm bg-transparent outline-none" style={{border:"1px solid var(--border)", color:"var(--text)", borderRadius:"10px", padding:"6px"}}/>
         <div>
           <label className="text-[10px] uppercase tracking-widest" style={{color:"var(--muted)"}}>Phrases de réconfort (une par ligne)</label>
@@ -4295,7 +4395,7 @@ function OutfitBoards({ boards, setBoards }) {
           <div key={it.id} className="group relative rounded-2xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
             {it.img ? <img src={it.img} alt="" className="w-full object-cover" style={{aspectRatio:"3/4"}}/> : <div className="w-full flex items-center justify-center text-3xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>👗</div>}
             <div className="p-2" style={{background:"var(--surface)"}}>
-              <input value={it.img} onChange={e=>updItem(open,it.id,{img:e.target.value})} placeholder="URL image" className="w-full text-[10px] bg-transparent outline-none mb-1" style={{color:"var(--muted)", borderBottom:"1px solid var(--border)"}}/>
+              <div className="mb-1"><ImgPicker value={it.img} onChange={v=>updItem(open,it.id,{img:v})} placeholder="URL image" small/></div>
               <input value={it.label} onChange={e=>updItem(open,it.id,{label:e.target.value})} placeholder="pièce / marque" className="w-full text-xs bg-transparent outline-none" style={{color:"var(--text)"}}/>
             </div>
             <button onClick={()=>delItem(open,it.id)} className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={12}/></button>
@@ -4794,7 +4894,7 @@ function FairyRealm({ data, setData }) {
               <div key={g.id} className="group relative rounded-2xl overflow-hidden" style={{border:"1px solid var(--border)"}}>
                 {g.img ? <img src={g.img} alt="" className="w-full object-cover" style={{aspectRatio:"3/4"}}/> : <div className="w-full flex items-center justify-center text-3xl" style={{aspectRatio:"3/4", background:"var(--surface2)"}}>🧚</div>}
                 <div className="p-2" style={{background:"var(--surface)"}}>
-                  <input value={g.img} onChange={e=>updGlam(g.id,{img:e.target.value})} placeholder="URL image" className="w-full text-[10px] bg-transparent outline-none mb-1" style={{color:"var(--muted)", borderBottom:"1px solid var(--border)"}}/>
+                  <div className="mb-1"><ImgPicker value={g.img} onChange={v=>updGlam(g.id,{img:v})} placeholder="URL image" small/></div>
                   <input value={g.label} onChange={e=>updGlam(g.id,{label:e.target.value})} placeholder="note..." className="w-full text-xs bg-transparent outline-none" style={{color:"var(--text)"}}/>
                 </div>
                 <button onClick={()=>delGlam(g.id)} className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={12}/></button>
@@ -5638,6 +5738,7 @@ export default function App() {
         @keyframes fadeUp {0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
         .richnote:empty:before { content: attr(data-ph); opacity:0.4; white-space:pre-line; }
         @keyframes spinSlow {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        @keyframes spin {0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
         @keyframes glow {0%,100%{box-shadow:0 0 20px rgba(var(--glow),0.2)}50%{box-shadow:0 0 40px rgba(var(--glow),0.5)}}
         .animate-shake{animation:shake .4s ease}.animate-ping-once{animation:pingOnce .6s ease}
         .animate-fade-up{animation:fadeUp .6s ease both}.animate-spin-slow{animation:spinSlow 30s linear infinite}
