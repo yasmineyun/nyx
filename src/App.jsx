@@ -3175,9 +3175,10 @@ function ShiftAnalyser({ log, setLog, moon }) {
   );
 }
 
-function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={} }) {
+function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={}, onDROpenChange=()=>{} }) {
   const [openId, setOpenId] = useState(null);
   const open = drs.find(d=>d.id===openId);
+  useEffect(()=>{ onDROpenChange(!!openId); return ()=>onDROpenChange(false); }, [openId]);
 
   const newDR = () => { const d = makeBlankDR(); setDrs([d, ...drs]); setOpenId(d.id); };
   const updateDR = (id, patch) => setDrs(drs.map(d=>d.id===id?{...d,...patch}:d));
@@ -3466,13 +3467,11 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const updateGalleryImg = (id, patch) => onUpdate({ gallery: dr.gallery.map(g=>g.id===id?{...g,...patch}:g) });
   const delGalleryImg = (id) => onUpdate({ gallery: dr.gallery.filter(g=>g.id!==id) });
 
-  // thème indépendant pour cette DR
-  const drTheme = dr.theme && THEMES[dr.theme] ? THEMES[dr.theme] : null;
-  const drVars = drTheme ? { ...drTheme.vars } : {};
+  // image de fond indépendante pour cette DR (sans toucher aux variables de thème global)
   const [showTheme, setShowTheme] = useState(false);
 
   return (
-    <div className="animate-fade-up" style={drTheme ? drVars : undefined}>
+    <div className="animate-fade-up relative">
       {/* fond image propre à la DR */}
       {dr.bgImage && <div className="fixed inset-0 -z-10 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover fixed`, opacity:dr.bgOpacity??0.5}}/>}
       {/* Barre de retour */}
@@ -3483,26 +3482,19 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
         <button onClick={()=>onUpdate({favorite:!dr.favorite})} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:dr.favorite?"#e0c97a":"var(--text)"}}>
           {dr.favorite ? "⭐ favorite" : "☆ ajouter aux favoris"}
         </button>
-        <button onClick={()=>setShowTheme(s=>!s)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>🎨 thème</button>
+        <button onClick={()=>setShowTheme(s=>!s)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>🖼️ fond</button>
         <button onClick={onDelete} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}>
           <Trash2 size={12} className="inline mr-1"/> supprimer DR
         </button>
       </div>
 
-      {/* picker thème de la DR */}
+      {/* picker fond de la DR */}
       {showTheme && (
         <div className="rounded-2xl p-4 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
-          <p className="text-xs mb-2" style={{color:"var(--accent)"}}>🎨 Ambiance de cette DR (indépendante du reste)</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            <button onClick={()=>onUpdate({theme:null})} className="px-3 py-1.5 rounded-full text-xs" style={{background:!dr.theme?"var(--primary)":"var(--surface2)", color:!dr.theme?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>défaut</button>
-            {Object.entries(THEMES).map(([k,t])=>(
-              <button key={k} onClick={()=>onUpdate({theme:k})} className="px-3 py-1.5 rounded-full text-xs" style={{background:dr.theme===k?"var(--primary)":"var(--surface2)", color:dr.theme===k?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>{t.icon} {t.name}</button>
-            ))}
-          </div>
-          <p className="text-[10px] uppercase tracking-widest mb-1" style={{color:"var(--muted)"}}>Image de fond de la DR</p>
+          <p className="text-xs mb-2" style={{color:"var(--accent)"}}>🖼️ Image de fond de cette DR (indépendante des autres)</p>
           <ImgPicker value={dr.bgImage} onChange={v=>onUpdate({bgImage:v})} placeholder="URL image de fond"/>
           {dr.bgImage && (<>
-            <p className="text-[10px] mt-2" style={{color:"var(--muted)"}}>Opacité : {Math.round((dr.bgOpacity??0.5)*100)}%</p>
+            <p className="text-[10px] mt-3" style={{color:"var(--muted)"}}>Opacité : {Math.round((dr.bgOpacity??0.5)*100)}%</p>
             <input type="range" min="0.1" max="1" step="0.05" value={dr.bgOpacity??0.5} onChange={e=>onUpdate({bgOpacity:parseFloat(e.target.value)})} className="w-full"/>
             <button onClick={()=>onUpdate({bgImage:null})} className="text-[11px] underline mt-1" style={{color:"var(--muted)"}}>retirer l'image</button>
           </>)}
@@ -6093,6 +6085,7 @@ export default function App() {
   const [witchEdit, setWitchEdit] = useState(false);
   const [font, setFont] = useState("serif");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [drOpen, setDrOpen] = useState(false);
   const [widgetMenuOpen, setWidgetMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("moi");
   const [activeSub, setActiveSub] = useState("dashboard");
@@ -6307,7 +6300,7 @@ export default function App() {
         input,textarea,select{font-family:inherit}
       `}</style>
 
-      {bgImage && <div className="fixed inset-0 -z-20 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity}}/>}
+      {bgImage && !drOpen && <div className="fixed inset-0 -z-20 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity}}/>}
       <Backdrop kind={activeBackdrop}/>
 
       <header className="sticky top-0 z-30 backdrop-blur-xl" style={{background:"rgba(0,0,0,0.08)", borderBottom:"1px solid var(--border)"}}>
@@ -6536,7 +6529,7 @@ export default function App() {
 
           {activeSub==="tarot" && <CardList items={tarotLog} setItems={setTarotLog} title="Journal de tirages" fields={[{k:"title",label:"Date/contexte"},{k:"deck",label:"Jeu"},{k:"question",label:"Question"},{k:"cards",label:"Cartes",multi:true},{k:"interpretation",label:"Interprétation",multi:true,big:true}]}/>}
 
-          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes} shiftLog={shiftLog} setShiftLog={setShiftLog} moon={moon}/>}
+          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes} shiftLog={shiftLog} setShiftLog={setShiftLog} moon={moon} onDROpenChange={setDrOpen}/>}
           {activeSub==="anchor" && <RealityAnchor drs={shiftingNotes}/>}
           {activeSub==="fairy" && <FairyRealm data={fairyData} setData={setFairyData}/>}
 
@@ -6596,13 +6589,15 @@ export default function App() {
             </button>
           </div>
 
-          {/* BOUTON THÈME DE CETTE PAGE */}
+          {/* BOUTON THÈME DE CETTE PAGE (caché quand une DR est ouverte : elle a son propre thème) */}
+          {!drOpen && (
           <PageThemeButton
             activeSection={activeSection} activeSub={activeSub}
             subLabel={(SUBTABS[activeSection]||[]).find(t=>t.k===activeSub)?.label || activeSub}
             overrides={overrides} setOverrides={setOverrides}
             ALL_THEMES={ALL_THEMES} customBackdrops={customBackdrops}
           />
+          )}
         </>
       )}
 
