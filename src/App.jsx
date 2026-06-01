@@ -1472,7 +1472,7 @@ function VinylPlayer({ link, cover, label="ma playlist", onChangeLink }) {
 }
 
 // petit champ image : URL + bouton galerie
-function ImgPicker({ value, onChange, placeholder="URL image", small=false }) {
+function ImgPicker({ value, onChange, placeholder="URL image", small=false, hq=false }) {
   return (
     <div className="flex gap-1 items-center">
       <input value={value && value.startsWith("data:") ? "" : (value||"")} onChange={e=>onChange(e.target.value)}
@@ -1480,7 +1480,7 @@ function ImgPicker({ value, onChange, placeholder="URL image", small=false }) {
         className={`flex-1 bg-transparent outline-none ${small?"text-[9px]":"text-xs"}`} style={{color:"var(--text)", borderBottom:"1px solid var(--border)", padding:"2px 0"}}/>
       <label className={`cursor-pointer rounded-full flex-shrink-0 flex items-center justify-center ${small?"px-1.5 py-0.5 text-[9px]":"px-2 py-1 text-[10px]"}`} style={{background:"var(--primary)", color:"var(--bg)"}}>
         🖼️
-        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f); onChange(d); e.target.value=""; }}/>
+        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f, hq?1920:1000, hq?0.92:0.8); onChange(d); e.target.value=""; }}/>
       </label>
     </div>
   );
@@ -3471,9 +3471,11 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const [showTheme, setShowTheme] = useState(false);
 
   return (
-    <div className="animate-fade-up relative">
-      {/* fond image propre à la DR */}
-      {dr.bgImage && <div className="fixed inset-0 -z-10 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover fixed`, opacity:dr.bgOpacity??0.5}}/>}
+    <div className="animate-fade-up relative" style={{zIndex:0}}>
+      {/* fond image propre à la DR — couvre tout l'écran derrière le contenu */}
+      {dr.bgImage && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover fixed`, opacity:dr.bgOpacity??0.5, zIndex:0}}/>}
+      {/* contenu au-dessus du fond */}
+      <div className="relative" style={{zIndex:1}}>
       {/* Barre de retour */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <button onClick={onBack} className="flex items-center gap-1 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>
@@ -3492,7 +3494,7 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
       {showTheme && (
         <div className="rounded-2xl p-4 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
           <p className="text-xs mb-2" style={{color:"var(--accent)"}}>🖼️ Image de fond de cette DR (indépendante des autres)</p>
-          <ImgPicker value={dr.bgImage} onChange={v=>onUpdate({bgImage:v})} placeholder="URL image de fond"/>
+          <ImgPicker value={dr.bgImage} onChange={v=>onUpdate({bgImage:v})} placeholder="URL image de fond" hq/>
           {dr.bgImage && (<>
             <p className="text-[10px] mt-3" style={{color:"var(--muted)"}}>Opacité : {Math.round((dr.bgOpacity??0.5)*100)}%</p>
             <input type="range" min="0.1" max="1" step="0.05" value={dr.bgOpacity??0.5} onChange={e=>onUpdate({bgOpacity:parseFloat(e.target.value)})} className="w-full"/>
@@ -3714,6 +3716,7 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
       <DRSocialGraph dr={dr} onUpdate={onUpdate}/>
       <DRMap dr={dr} onUpdate={onUpdate}/>
       <DRGazette dr={dr} onUpdate={onUpdate}/>
+      </div>
     </div>
   );
 }
@@ -5604,7 +5607,7 @@ function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOve
 
             {tab==="image" && (<>
               <p className="text-xs italic mb-3" style={{color:"var(--muted)"}}>Une image de fond rien que pour cette page (URL ou galerie).</p>
-              <ImgPicker value={ov.bgImage} onChange={v=>setBgImg(v)} placeholder="URL image de fond"/>
+              <ImgPicker value={ov.bgImage} onChange={v=>setBgImg(v)} placeholder="URL image de fond" hq/>
               {ov.bgImage && (<>
                 <div className="mt-3 rounded-xl overflow-hidden" style={{height:"90px", background:`url(${ov.bgImage}) center/cover`, border:"1px solid var(--border)"}}/>
                 <p className="text-[10px] uppercase tracking-widest mt-3 mb-1" style={{color:"var(--muted)"}}>Opacité : {Math.round((ov.bgOpacity??0.5)*100)}%</p>
