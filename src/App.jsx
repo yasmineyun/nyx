@@ -3190,7 +3190,7 @@ function ShiftAnalyser({ log, setLog, moon }) {
 function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={}, onDROpenChange=()=>{} }) {
   const [openId, setOpenId] = useState(null);
   const open = drs.find(d=>d.id===openId);
-  useEffect(()=>{ onDROpenChange(!!openId); return ()=>onDROpenChange(false); }, [openId]);
+  useEffect(()=>{ onDROpenChange(openId || null); return ()=>onDROpenChange(null); }, [openId]);
 
   const newDR = () => { const d = makeBlankDR(); setDrs([d, ...drs]); setOpenId(d.id); };
   const updateDR = (id, patch) => setDrs(drs.map(d=>d.id===id?{...d,...patch}:d));
@@ -3497,24 +3497,11 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
         <button onClick={()=>onUpdate({favorite:!dr.favorite})} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:dr.favorite?"#e0c97a":"var(--text)"}}>
           {dr.favorite ? "⭐ favorite" : "☆ ajouter aux favoris"}
         </button>
-        <button onClick={()=>setShowTheme(s=>!s)} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>🖼️ fond</button>
         <button onClick={onDelete} className="px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid #c08080", color:"#c08080"}}>
           <Trash2 size={12} className="inline mr-1"/> supprimer DR
         </button>
       </div>
-
-      {/* picker fond de la DR */}
-      {showTheme && (
-        <div className="rounded-2xl p-4 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
-          <p className="text-xs mb-2" style={{color:"var(--accent)"}}>🖼️ Image de fond de cette DR (indépendante des autres)</p>
-          <ImgPicker value={dr.bgImage} onChange={v=>onUpdate({bgImage:v})} placeholder="URL image de fond" hq/>
-          {dr.bgImage && (<>
-            <p className="text-[10px] mt-3" style={{color:"var(--muted)"}}>Opacité : {Math.round((dr.bgOpacity??0.5)*100)}%</p>
-            <input type="range" min="0.1" max="1" step="0.05" value={dr.bgOpacity??0.5} onChange={e=>onUpdate({bgOpacity:parseFloat(e.target.value)})} className="w-full"/>
-            <button onClick={()=>onUpdate({bgImage:null})} className="text-[11px] underline mt-1" style={{color:"var(--muted)"}}>retirer l'image</button>
-          </>)}
-        </div>
-      )}
+      <p className="text-[10px] italic mb-4" style={{color:"var(--muted)"}}>✦ Astuce : le bouton 🎨 en bas à gauche personnalise le thème, la police et le fond de CETTE DR (indépendant des autres).</p>
 
       {/* HERO : couverture + nom + citation */}
       <div className="relative rounded-3xl overflow-hidden mb-6" style={{border:"1px solid var(--border)", boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}}>
@@ -5548,10 +5535,10 @@ function FairyRealm({ data, setData }) {
 /* ============================================================
    ✦ BOUTON THÈME DE PAGE — thème indépendant par sous-section
    ============================================================ */
-function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOverrides, ALL_THEMES, customBackdrops }) {
+function PageThemeButton({ activeSection, activeSub, subLabel, overrides, setOverrides, ALL_THEMES, customBackdrops, openDRId=null }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("theme"); // theme | backdrop
-  const key = `sub:${activeSection}:${activeSub}`;
+  const key = openDRId ? `dr:${openDRId}` : `sub:${activeSection}:${activeSub}`;
   const ov = overrides[key] || {};
   const setTheme = (t) => setOverrides({ ...overrides, [key]: { ...ov, theme:t } });
   const resetTheme = () => { const c={...overrides}; if(c[key]){ const {theme, ...rest}=c[key]; c[key]=rest; if(Object.keys(c[key]).length===0) delete c[key]; } setOverrides(c); };
@@ -6184,10 +6171,13 @@ export default function App() {
   const ALL_THEMES = useMemo(()=>({ ...THEMES, ...customThemes }), [customThemes]);
   const themeObj = ALL_THEMES[theme] || THEMES.myUniverse;
 
-  // résoudre overrides : sous-section > section > thème global
+  // résoudre overrides : (DR ouverte) > sous-section > section > thème global
   const secOv = overrides[`sec:${activeSection}`] || {};
-  const subOv = overrides[`sub:${activeSection}:${activeSub}`] || {};
-  // thème effectif : override sous-section > override section > thème du côté
+  const subBaseOv = overrides[`sub:${activeSection}:${activeSub}`] || {};
+  const drOv = drOpen ? (overrides[`dr:${drOpen}`] || {}) : {};
+  // si une DR est ouverte, son override prime sur celui de la sous-section
+  const subOv = drOpen ? { ...subBaseOv, ...drOv } : subBaseOv;
+  // thème effectif : DR > override sous-section > override section > thème du côté
   const effectiveThemeKey = subOv.theme || secOv.theme || theme;
   const effectiveTheme = ALL_THEMES[effectiveThemeKey] || themeObj;
   const effectiveFont = subOv.font || secOv.font || font;
@@ -6319,7 +6309,7 @@ export default function App() {
         input,textarea,select{font-family:inherit}
       `}</style>
 
-      {bgImage && !drOpen && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity, zIndex:0}}/>}
+      {bgImage && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity, zIndex:0}}/>}
       <Backdrop kind={activeBackdrop}/>
 
       <header className="sticky top-0 z-30 backdrop-blur-xl" style={{background:"rgba(0,0,0,0.08)", borderBottom:"1px solid var(--border)"}}>
@@ -6348,8 +6338,8 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 relative" style={{zIndex:1}}>
         {saveError && (
-          <div className="mb-4 rounded-xl px-4 py-3 text-sm" style={{background:"rgba(200,80,80,0.15)", border:"1px solid #c08080", color:"var(--text)"}}>
-            ⚠️ Sauvegarde impossible : trop de données (souvent une image de fond trop lourde). Tes derniers changements ne seront pas gardés au redémarrage. Astuce : pour les fonds, colle un <b>lien d'image</b> (URL) au lieu d'importer depuis la galerie — ça ne pèse presque rien.
+          <div className="mb-4 rounded-xl px-3 py-2 text-xs flex items-center gap-2" style={{background:"rgba(200,80,80,0.12)", border:"1px solid #c08080", color:"var(--muted)"}}>
+            ⚠️ Sauvegarde en pause (données lourdes). Allège une image de fond, ou utilise un lien URL.
           </div>
         )}
         {/* ===== MOI ===== */}
@@ -6613,15 +6603,14 @@ export default function App() {
             </button>
           </div>
 
-          {/* BOUTON THÈME DE CETTE PAGE (caché quand une DR est ouverte : elle a son propre thème) */}
-          {!drOpen && (
+          {/* BOUTON THÈME DE CETTE PAGE (bas gauche) — indépendant par DR si une DR est ouverte */}
           <PageThemeButton
             activeSection={activeSection} activeSub={activeSub}
-            subLabel={(SUBTABS[activeSection]||[]).find(t=>t.k===activeSub)?.label || activeSub}
+            subLabel={drOpen ? "cette DR" : ((SUBTABS[activeSection]||[]).find(t=>t.k===activeSub)?.label || activeSub)}
             overrides={overrides} setOverrides={setOverrides}
             ALL_THEMES={ALL_THEMES} customBackdrops={customBackdrops}
+            openDRId={drOpen}
           />
-          )}
         </>
       )}
 
