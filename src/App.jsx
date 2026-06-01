@@ -8,7 +8,7 @@ import {
   BookMarked, Stars, GripVertical, Type as TypeIcon, AlignLeft,
   Star, ChevronDown, Paintbrush, Eye, LogOut, Mail
 } from "lucide-react";
-import { auth, watchUser, signUp, signIn, signInGoogle, logOut, loadState, saveState } from "./firebase";
+import { auth, watchUser, signUp, signIn, signInGoogle, logOut, loadState, saveState, uploadImage, getCurrentUid } from "./firebase";
 
 /* ============================================================
    ✦ ARRIÈRE-PLANS ANIMÉS (catalogue, choisissables par section)
@@ -1227,7 +1227,7 @@ function RichNote({ page, updatePage, compact=false }) {
     commit();
   };
   const insertImage = async (file) => {
-    const d = await fileToCompressedDataUrl(file, 1000, 0.8);
+    const d = await uploadOrCompress(file, 1400, 0.85, "inline");
     insertHTML(`<img src="${d}" style="max-width:100%;border-radius:12px;margin:8px 0;display:block;" />`);
   };
   const insertImageUrl = () => { const u=prompt("URL de l'image :"); if(u) insertHTML(`<img src="${u}" style="max-width:100%;border-radius:12px;margin:8px 0;display:block;" />`); };
@@ -1250,7 +1250,7 @@ function RichNote({ page, updatePage, compact=false }) {
   const addSticker = (st) => updatePage({ stickers:[...stickers, st] });
   const updSticker = (s) => updatePage({ stickers: stickers.map(x=>x.id===s.id?s:x) });
   const delSticker = (id) => updatePage({ stickers: stickers.filter(x=>x.id!==id) });
-  const addImgStickerFile = async (file) => { const src=await fileToCompressedDataUrl(file,900,0.8); addSticker({ id:uid(), kind:"img", src, x:40, y:60, w:160, z:20+stickers.length }); };
+  const addImgStickerFile = async (file) => { const src=await uploadOrCompress(file,1200,0.82,"sticker"); addSticker({ id:uid(), kind:"img", src, x:40, y:60, w:160, z:20+stickers.length }); };
   const addImgStickerUrl = () => { const u=prompt("URL de l'image à poser :"); if(u) addSticker({ id:uid(), kind:"img", src:u, x:40, y:60, w:160, z:20+stickers.length }); };
   const addNoteSticker = () => addSticker({ id:uid(), kind:"note", html:"", x:50, y:50, w:180, z:20+stickers.length });
 
@@ -1392,19 +1392,34 @@ function fileToCompressedDataUrl(file, max=1000, quality=0.8) {
     r.readAsDataURL(file);
   });
 }
+// Compresse PUIS envoie vers Firebase Storage → renvoie une URL légère.
+// Si l'upload échoue (Storage pas activé, hors-ligne), on garde le base64 (rien ne casse).
+async function uploadOrCompress(file, max=1400, quality=0.85, folder="img") {
+  const dataUrl = await fileToCompressedDataUrl(file, max, quality);
+  const uid = getCurrentUid();
+  if (!uid) return dataUrl; // pas connecté → base64
+  try {
+    const url = await uploadImage(uid, dataUrl, folder);
+    return url; // URL légère (https://...)
+  } catch (e) {
+    console.warn("upload Storage échoué, repli base64", e);
+    return dataUrl;
+  }
+}
 /* ============================================================
    ✦ VINYL PLAYER — tourne-disque + lecteur Spotify
    ============================================================ */
 function spotifyEmbedUrl(link) {
   if (!link) return null;
   if (!link.includes("spotify")) return null;
-  return link
-    .replace("/intl-fr/","/").replace("/intl-en/","/")
-    .replace("/track/","/embed/track/")
-    .replace("/playlist/","/embed/playlist/")
-    .replace("/album/","/embed/album/")
-    .replace("/artist/","/embed/artist/")
-    .split("?")[0];
+  // retire tout préfixe régional /intl-xx/ (ex: /intl-fr/, /intl-en/)
+  let l = link.replace(/\/intl-[a-z]{2}\//i, "/").split("?")[0].trim();
+  // déjà au format embed ?
+  if (l.includes("/embed/")) return l;
+  // transforme open.spotify.com/<type>/<id> en /embed/<type>/<id>
+  const m = l.match(/spotify\.com\/(track|playlist|album|artist|show|episode)\/([A-Za-z0-9]+)/i);
+  if (m) return `https://open.spotify.com/embed/${m[1].toLowerCase()}/${m[2]}`;
+  return null; // lien court spotify.link non supporté en embed
 }
 function VinylPlayer({ link, cover, label="ma playlist", onChangeLink }) {
   const [spinning, setSpinning] = useState(false);
@@ -1425,6 +1440,7 @@ function VinylPlayer({ link, cover, label="ma playlist", onChangeLink }) {
           {editing && <button onClick={()=>{ setDraft(link||""); setEditing(false); }} className="px-3 rounded-lg text-xs" style={{background:"var(--surface2)", color:"var(--text)"}}>annuler</button>}
         </div>
         <p className="text-[10px] italic mt-2" style={{color:"var(--muted)"}}>Ensuite, ton vinyle apparaîtra et tournera avec ta musique 🪩</p>
+        <p className="text-[10px] mt-1" style={{color:"var(--accent)"}}>⚠️ Utilise le lien complet (open.spotify.com/playlist/...), pas le lien court "spotify.link". Sur Spotify : ··· → Partager → Copier le lien.</p>
       </div>
     );
   }
@@ -1480,7 +1496,7 @@ function ImgPicker({ value, onChange, placeholder="URL image", small=false, hq=f
         className={`flex-1 bg-transparent outline-none ${small?"text-[9px]":"text-xs"}`} style={{color:"var(--text)", borderBottom:"1px solid var(--border)", padding:"2px 0"}}/>
       <label className={`cursor-pointer rounded-full flex-shrink-0 flex items-center justify-center ${small?"px-1.5 py-0.5 text-[9px]":"px-2 py-1 text-[10px]"}`} style={{background:"var(--primary)", color:"var(--bg)"}}>
         🖼️
-        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f, hq?1200:1000, hq?0.72:0.8); onChange(d); e.target.value=""; }}/>
+        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await uploadOrCompress(f, hq?1600:1200, hq?0.85:0.8, "img"); onChange(d); e.target.value=""; }}/>
       </label>
     </div>
   );
@@ -6154,14 +6170,22 @@ export default function App() {
   useEffect(()=>{
     if (!user || !initialLoadDone.current) return;
     const t = setTimeout(async ()=>{
-      const ok = await saveState(user.uid, {
+      const payload = {
         appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops,
         tasks, widgets, scrapPages, journalPin, grimoireEntries,
         shiftingNotes, astralNotes, passions, wishlist, goals,
         gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions,
         customRituals, customTips, customAffirm,
-      });
-      if (ok === false) setSaveError(true); else setSaveError(false);
+      };
+      // mesure la taille (Firestore limite 1 Mo par document)
+      let sizeKB = 0;
+      try { sizeKB = Math.round(new Blob([JSON.stringify(payload)]).size/1024); } catch(e){}
+      if (sizeKB > 950) {
+        setSaveError(`Tes données pèsent ${sizeKB} Ko (limite ~1000 Ko). La sauvegarde est bloquée. Allège : retire des images de fond/dessins lourds, ou utilise des liens URL pour les images.`);
+        return; // on n'essaie même pas (ça échouerait)
+      }
+      const ok = await saveState(user.uid, payload);
+      setSaveError(ok===false ? `Sauvegarde refusée par le serveur (données ~${sizeKB} Ko). Allège les images.` : false);
     }, 1000);
     return ()=>clearTimeout(t);
   }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
@@ -6336,8 +6360,8 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 relative" style={{zIndex:1}}>
         {saveError && (
-          <div className="mb-4 rounded-xl px-3 py-2 text-xs flex items-center gap-2" style={{background:"rgba(200,80,80,0.12)", border:"1px solid #c08080", color:"var(--muted)"}}>
-            ⚠️ Sauvegarde en pause (données lourdes). Allège une image de fond, ou utilise un lien URL.
+          <div className="mb-4 rounded-xl px-3 py-2 text-xs flex items-center gap-2" style={{background:"rgba(200,80,80,0.12)", border:"1px solid #c08080", color:"var(--text)"}}>
+            ⚠️ {typeof saveError === "string" ? saveError : "Sauvegarde en pause (données lourdes). Allège une image de fond, ou utilise un lien URL."}
           </div>
         )}
         {/* ===== MOI ===== */}
