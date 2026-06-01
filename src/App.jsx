@@ -2662,7 +2662,7 @@ function ControlPanel({ open, onClose, ctx }) {
     overrides, setOverrides,
     customRituals, setCustomRituals, customTips, setCustomTips, customAffirm, setCustomAffirm,
     ALL_THEMES, customThemes, setCustomThemes,
-    customBackdrops, setCustomBackdrops
+    customBackdrops, setCustomBackdrops, dataSizeKB=0
   } = ctx;
   const [tab, setTab] = useState("look");
   const [newSection, setNewSection] = useState("");
@@ -2779,6 +2779,23 @@ function ControlPanel({ open, onClose, ctx }) {
             <button onClick={cleanAllBgImages} className="w-full py-2 mt-2 rounded-lg text-xs" style={{background:"rgba(200,80,80,0.12)", border:"1px solid #c08080", color:"var(--text)"}}>
               🧹 Retirer toutes les images de fond (résout images fantômes)
             </button>
+
+            {/* jauge de stockage */}
+            <div className="mt-4 rounded-xl p-3" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px]" style={{color:"var(--text)"}}>💾 Poids de tes données</span>
+                <span className="text-[11px] font-bold" style={{color: dataSizeKB>900?"#c08080":dataSizeKB>700?"#d4a017":"var(--accent)"}}>{dataSizeKB} / 1000 Ko</span>
+              </div>
+              <div className="w-full rounded-full overflow-hidden" style={{height:"8px", background:"var(--surface2)"}}>
+                <div style={{ width:`${Math.min(100, dataSizeKB/10)}%`, height:"100%", background: dataSizeKB>900?"#c08080":dataSizeKB>700?"#d4a017":"var(--primary)", transition:"width .4s" }}/>
+              </div>
+              <p className="text-[9px] mt-1.5" style={{color:"var(--muted)"}}>
+                {dataSizeKB>900 ? "⚠️ Presque plein. La migration va alléger en envoyant tes images vers le stockage (illimité)."
+                  : dataSizeKB>700 ? "Ça se remplit. Les nouvelles images vont automatiquement dans le stockage."
+                  : "✓ Tout va bien. Les images sont stockées séparément (5 Go gratuits)."}
+              </p>
+              <p className="text-[9px] mt-1" style={{color:"var(--muted)"}}>Détail complet : console.firebase.google.com → Storage → Usage</p>
+            </div>
           </>)}
 
           {tab==="sections" && (
@@ -6112,11 +6129,13 @@ export default function App() {
   // 🚚 Migration auto : envoie vers Storage TOUTES les images base64 lourdes, puis sauvegarde directement
   const migrationDone = useRef(false);
   useEffect(()=>{
-    if (!user || !initialLoadDone.current || migrationDone.current) return;
+    if (!user || loadingState || migrationDone.current) return;
     const uid = getCurrentUid();
     if (!uid) return;
-    migrationDone.current = true;
-    (async ()=>{
+    // petit délai pour laisser les données finir de se charger
+    const timer = setTimeout(()=>{
+      migrationDone.current = true;
+      (async ()=>{
       let count = 0;
       const migrate = async (obj) => {
         if (Array.isArray(obj)) { for (let i=0;i<obj.length;i++) obj[i]=await migrate(obj[i]); return obj; }
@@ -6127,7 +6146,6 @@ export default function App() {
         return obj;
       };
       try {
-        // migrer toutes les sources d'images
         const mShift = await migrate(JSON.parse(JSON.stringify(shiftingNotes)));
         const mOver = await migrate(JSON.parse(JSON.stringify(overrides)));
         const mComfort = await migrate(JSON.parse(JSON.stringify(comfortChars)));
@@ -6138,7 +6156,6 @@ export default function App() {
         if (count > 0) {
           setShiftingNotes(mShift); setOverrides(mOver); setComfortChars(mComfort);
           setOutfitBoards(mOutfits); setPassions(mPassions); setScrapPages(mScrap); setFairyData(mFairy);
-          // SAUVEGARDE FORCÉE directe (contourne le blocage de poids, car maintenant c'est allégé)
           await saveState(uid, {
             appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides:mOver, customThemes, customBackdrops,
             tasks, widgets, scrapPages:mScrap, journalPin, grimoireEntries,
@@ -6150,7 +6167,9 @@ export default function App() {
           alert(`✨ ${count} image(s) déplacée(s) vers le stockage. Ta sauvegarde est débloquée !`);
         }
       } catch(e){ console.warn("migration", e); }
-    })();
+      })();
+    }, 2000);
+    return ()=>clearTimeout(timer);
   }, [user, loadingState]);
 
   const [appPin, setAppPin] = useState("");
@@ -6329,7 +6348,14 @@ export default function App() {
   const addWidget=(type)=>setSecWidgets([...secWidgets, {id:uid(), type, content:"", x:6+Math.random()*10, y:6+Math.random()*10, w: type==="clock"?24:30}]);
   const subTabsFor=(sec)=>SUBTABS[sec]||[];
 
-  const ctx = { theme,setTheme,font,setFont,sections,setSections,activeSection,activeSub,subTabsFor,overrides,setOverrides,customRituals,setCustomRituals,customTips,setCustomTips,customAffirm,setCustomAffirm,ALL_THEMES,customThemes,setCustomThemes,customBackdrops,setCustomBackdrops };
+  const dataSizeKB = useMemo(()=>{
+    try {
+      const payload = { appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm };
+      return Math.round(new Blob([JSON.stringify(payload)]).size/1024);
+    } catch(e){ return 0; }
+  }, [shiftingNotes, overrides, comfortChars, outfitBoards, passions, scrapPages, fairyData, grimoireEntries, moodLog, tasks, widgets]);
+
+  const ctx = { theme,setTheme,font,setFont,sections,setSections,activeSection,activeSub,subTabsFor,overrides,setOverrides,customRituals,setCustomRituals,customTips,setCustomTips,customAffirm,setCustomAffirm,ALL_THEMES,customThemes,setCustomThemes,customBackdrops,setCustomBackdrops,dataSizeKB };
 
   if (!authReady) return (
     <div className="fixed inset-0 flex items-center justify-center" style={{background:"linear-gradient(160deg,#1a0d24,#3a2a5e)"}}>
