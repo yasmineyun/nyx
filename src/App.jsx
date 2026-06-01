@@ -3484,8 +3484,6 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
 
   return (
     <>
-      {/* fond image propre à la DR — fixe, plein écran (hors élément animé pour ne pas être piégé par transform) */}
-      {dr.bgImage && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover`, opacity:dr.bgOpacity??0.5, zIndex:0}}/>}
     <div className="animate-fade-up relative" style={{zIndex:1}}>
       {/* contenu au-dessus du fond */}
       <div className="relative" style={{zIndex:1}}>
@@ -6171,12 +6169,12 @@ export default function App() {
   const ALL_THEMES = useMemo(()=>({ ...THEMES, ...customThemes }), [customThemes]);
   const themeObj = ALL_THEMES[theme] || THEMES.myUniverse;
 
-  // résoudre overrides : (DR ouverte) > sous-section > section > thème global
+  // résoudre overrides : (DR ouverte → SON propre override SEUL) sinon sous-section > section
   const secOv = overrides[`sec:${activeSection}`] || {};
   const subBaseOv = overrides[`sub:${activeSection}:${activeSub}`] || {};
   const drOv = drOpen ? (overrides[`dr:${drOpen}`] || {}) : {};
-  // si une DR est ouverte, son override prime sur celui de la sous-section
-  const subOv = drOpen ? { ...subBaseOv, ...drOv } : subBaseOv;
+  // Si une DR est ouverte : on utilise UNIQUEMENT son override (indépendant total, pas d'héritage du fond de la sous-section shifting)
+  const subOv = drOpen ? drOv : subBaseOv;
   // thème effectif : DR > override sous-section > override section > thème du côté
   const effectiveThemeKey = subOv.theme || secOv.theme || theme;
   const effectiveTheme = ALL_THEMES[effectiveThemeKey] || themeObj;
