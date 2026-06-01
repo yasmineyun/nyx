@@ -1480,7 +1480,7 @@ function ImgPicker({ value, onChange, placeholder="URL image", small=false, hq=f
         className={`flex-1 bg-transparent outline-none ${small?"text-[9px]":"text-xs"}`} style={{color:"var(--text)", borderBottom:"1px solid var(--border)", padding:"2px 0"}}/>
       <label className={`cursor-pointer rounded-full flex-shrink-0 flex items-center justify-center ${small?"px-1.5 py-0.5 text-[9px]":"px-2 py-1 text-[10px]"}`} style={{background:"var(--primary)", color:"var(--bg)"}}>
         🖼️
-        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f, hq?1920:1000, hq?0.92:0.8); onChange(d); e.target.value=""; }}/>
+        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f, hq?1400:1000, hq?0.82:0.8); onChange(d); e.target.value=""; }}/>
       </label>
     </div>
   );
@@ -6089,6 +6089,7 @@ export default function App() {
   const [font, setFont] = useState("serif");
   const [panelOpen, setPanelOpen] = useState(false);
   const [drOpen, setDrOpen] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [widgetMenuOpen, setWidgetMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("moi");
   const [activeSub, setActiveSub] = useState("dashboard");
@@ -6153,14 +6154,15 @@ export default function App() {
   // ✦ Auto-sauvegarde Firestore (debounced 1s)
   useEffect(()=>{
     if (!user || !initialLoadDone.current) return;
-    const t = setTimeout(()=>{
-      saveState(user.uid, {
+    const t = setTimeout(async ()=>{
+      const ok = await saveState(user.uid, {
         appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops,
         tasks, widgets, scrapPages, journalPin, grimoireEntries,
         shiftingNotes, astralNotes, passions, wishlist, goals,
         gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions,
         customRituals, customTips, customAffirm,
       });
+      if (ok === false) setSaveError(true); else setSaveError(false);
     }, 1000);
     return ()=>clearTimeout(t);
   }, [user, appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides, customThemes, customBackdrops, tasks, widgets, scrapPages, journalPin, grimoireEntries, shiftingNotes, astralNotes, passions, wishlist, goals, gratitude, moodLog, cycleData, bottles, comfortChars, outfitBoards, lifeOst, manifestSeeds, fairyData, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions, customRituals, customTips, customAffirm]);
@@ -6303,7 +6305,7 @@ export default function App() {
         input,textarea,select{font-family:inherit}
       `}</style>
 
-      {bgImage && !drOpen && <div className="fixed inset-0 -z-20 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity}}/>}
+      {bgImage && !drOpen && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${bgImage}) center/cover fixed`, opacity:bgOpacity, zIndex:0}}/>}
       <Backdrop kind={activeBackdrop}/>
 
       <header className="sticky top-0 z-30 backdrop-blur-xl" style={{background:"rgba(0,0,0,0.08)", borderBottom:"1px solid var(--border)"}}>
@@ -6330,7 +6332,12 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 relative">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 relative" style={{zIndex:1}}>
+        {saveError && (
+          <div className="mb-4 rounded-xl px-4 py-3 text-sm" style={{background:"rgba(200,80,80,0.15)", border:"1px solid #c08080", color:"var(--text)"}}>
+            ⚠️ Sauvegarde impossible : trop de données (souvent une image de fond trop lourde). Tes derniers changements ne seront pas gardés au redémarrage. Astuce : pour les fonds, colle un <b>lien d'image</b> (URL) au lieu d'importer depuis la galerie — ça ne pèse presque rien.
+          </div>
+        )}
         {/* ===== MOI ===== */}
         {activeSection==="moi" && (<div className="animate-fade-up">
           <SoftBrandBanner subtitle="a journal made with love and dry petals"/>
