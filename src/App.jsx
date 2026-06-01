@@ -6109,7 +6109,7 @@ export default function App() {
     return unsub;
   }, []);
 
-  // 🚚 Migration auto : envoie vers Storage les vieilles images base64 lourdes (galeries, entourage, etc.)
+  // 🚚 Migration auto : envoie vers Storage TOUTES les images base64 lourdes, puis sauvegarde directement
   const migrationDone = useRef(false);
   useEffect(()=>{
     if (!user || !initialLoadDone.current || migrationDone.current) return;
@@ -6117,20 +6117,37 @@ export default function App() {
     if (!uid) return;
     migrationDone.current = true;
     (async ()=>{
-      // remplace récursivement les dataURL lourds par des URL Storage
+      let count = 0;
       const migrate = async (obj) => {
         if (Array.isArray(obj)) { for (let i=0;i<obj.length;i++) obj[i]=await migrate(obj[i]); return obj; }
         if (obj && typeof obj === "object") { for (const k of Object.keys(obj)) obj[k]=await migrate(obj[k]); return obj; }
-        if (typeof obj === "string" && obj.startsWith("data:image") && obj.length > 60000) {
-          try { return await uploadImage(uid, obj, "migrated"); } catch(e){ return obj; }
+        if (typeof obj === "string" && obj.startsWith("data:image") && obj.length > 40000) {
+          try { const url = await uploadImage(uid, obj, "migrated"); count++; return url; } catch(e){ return obj; }
         }
         return obj;
       };
       try {
-        const copy = JSON.parse(JSON.stringify(shiftingNotes));
-        const migrated = await migrate(copy);
-        if (JSON.stringify(migrated) !== JSON.stringify(shiftingNotes)) {
-          setShiftingNotes(migrated);
+        // migrer toutes les sources d'images
+        const mShift = await migrate(JSON.parse(JSON.stringify(shiftingNotes)));
+        const mOver = await migrate(JSON.parse(JSON.stringify(overrides)));
+        const mComfort = await migrate(JSON.parse(JSON.stringify(comfortChars)));
+        const mOutfits = await migrate(JSON.parse(JSON.stringify(outfitBoards)));
+        const mPassions = await migrate(JSON.parse(JSON.stringify(passions)));
+        const mScrap = await migrate(JSON.parse(JSON.stringify(scrapPages)));
+        const mFairy = await migrate(JSON.parse(JSON.stringify(fairyData)));
+        if (count > 0) {
+          setShiftingNotes(mShift); setOverrides(mOver); setComfortChars(mComfort);
+          setOutfitBoards(mOutfits); setPassions(mPassions); setScrapPages(mScrap); setFairyData(mFairy);
+          // SAUVEGARDE FORCÉE directe (contourne le blocage de poids, car maintenant c'est allégé)
+          await saveState(uid, {
+            appPin, homeContent, witchTexts, theme, sectionThemes, font, sections, overrides:mOver, customThemes, customBackdrops,
+            tasks, widgets, scrapPages:mScrap, journalPin, grimoireEntries,
+            shiftingNotes:mShift, astralNotes, passions:mPassions, wishlist, goals,
+            gratitude, moodLog, cycleData, bottles, comfortChars:mComfort, outfitBoards:mOutfits, lifeOst, manifestSeeds, fairyData:mFairy, lunarLog, shiftLog, astroProfile, activeDR, habits, dreamLog, tarotLog, intentions,
+            customRituals, customTips, customAffirm,
+          });
+          setSaveError(false);
+          alert(`✨ ${count} image(s) déplacée(s) vers le stockage. Ta sauvegarde est débloquée !`);
         }
       } catch(e){ console.warn("migration", e); }
     })();
