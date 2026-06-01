@@ -10,6 +10,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import { getStorage, ref as storageRef, uploadString, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAXgCLmC9Xs6RwW0tJCtl8rxv7gkyFt_d4",
@@ -23,10 +24,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 /* ---- AUTH helpers ---- */
-export const watchUser = (cb) => onAuthStateChanged(auth, cb);
+let _currentUid = null;
+export const getCurrentUid = () => _currentUid;
+export const watchUser = (cb) => onAuthStateChanged(auth, (u)=>{ _currentUid = u?.uid || null; cb(u); });
 export const signUp = (email, password) => createUserWithEmailAndPassword(auth, email, password);
 export const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
 export const signInGoogle = () => signInWithPopup(auth, googleProvider);
@@ -60,4 +64,21 @@ export function subscribeState(uid, cb) {
   return onSnapshot(userDocRef(uid), (snap) => {
     if (snap.exists()) cb(snap.data());
   });
+}
+
+/* ---- STORAGE : upload d'images (renvoie une URL légère au lieu d'un base64 lourd) ---- */
+// Accepte un dataURL (base64) OU un File. Renvoie l'URL de téléchargement publique.
+export async function uploadImage(uid, dataUrlOrFile, folder = "img") {
+  if (!uid) throw new Error("non connecté");
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const path = `users/${uid}/${folder}/${id}`;
+  const sref = storageRef(storage, path);
+  if (typeof dataUrlOrFile === "string") {
+    // c'est un dataURL base64
+    await uploadString(sref, dataUrlOrFile, "data_url");
+  } else {
+    // c'est un File / Blob
+    await uploadBytes(sref, dataUrlOrFile);
+  }
+  return await getDownloadURL(sref);
 }
