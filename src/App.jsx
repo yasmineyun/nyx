@@ -6109,6 +6109,33 @@ export default function App() {
     return unsub;
   }, []);
 
+  // 🚚 Migration auto : envoie vers Storage les vieilles images base64 lourdes (galeries, entourage, etc.)
+  const migrationDone = useRef(false);
+  useEffect(()=>{
+    if (!user || !initialLoadDone.current || migrationDone.current) return;
+    const uid = getCurrentUid();
+    if (!uid) return;
+    migrationDone.current = true;
+    (async ()=>{
+      // remplace récursivement les dataURL lourds par des URL Storage
+      const migrate = async (obj) => {
+        if (Array.isArray(obj)) { for (let i=0;i<obj.length;i++) obj[i]=await migrate(obj[i]); return obj; }
+        if (obj && typeof obj === "object") { for (const k of Object.keys(obj)) obj[k]=await migrate(obj[k]); return obj; }
+        if (typeof obj === "string" && obj.startsWith("data:image") && obj.length > 60000) {
+          try { return await uploadImage(uid, obj, "migrated"); } catch(e){ return obj; }
+        }
+        return obj;
+      };
+      try {
+        const copy = JSON.parse(JSON.stringify(shiftingNotes));
+        const migrated = await migrate(copy);
+        if (JSON.stringify(migrated) !== JSON.stringify(shiftingNotes)) {
+          setShiftingNotes(migrated);
+        }
+      } catch(e){ console.warn("migration", e); }
+    })();
+  }, [user, loadingState]);
+
   const [appPin, setAppPin] = useState("");
   const [appUnlocked, setAppUnlocked] = useState(false);
   const [homeContent, setHomeContent] = useState(HOME_DEFAULT);
@@ -6202,9 +6229,9 @@ export default function App() {
       // mesure la taille (Firestore limite 1 Mo par document)
       let sizeKB = 0;
       try { sizeKB = Math.round(new Blob([JSON.stringify(payload)]).size/1024); } catch(e){}
-      if (sizeKB > 950) {
-        setSaveError(`Tes données pèsent ${sizeKB} Ko (limite ~1000 Ko). La sauvegarde est bloquée. Allège : retire des images de fond/dessins lourds, ou utilise des liens URL pour les images.`);
-        return; // on n'essaie même pas (ça échouerait)
+      if (sizeKB > 990) {
+        setSaveError(`Tes données pèsent ${sizeKB} Ko (limite ~1000 Ko). Allège une image pour débloquer la sauvegarde.`);
+        return;
       }
       const ok = await saveState(user.uid, payload);
       setSaveError(ok===false ? `Sauvegarde refusée par le serveur (données ~${sizeKB} Ko). Allège les images.` : false);
