@@ -3203,7 +3203,7 @@ function ShiftAnalyser({ log, setLog, moon }) {
   );
 }
 
-function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={}, onDROpenChange=()=>{} }) {
+function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={}, onDROpenChange=()=>{}, hasPageBg=false, onClearPageBg=()=>{} }) {
   const [openId, setOpenId] = useState(null);
   const open = drs.find(d=>d.id===openId);
   useEffect(()=>{ onDROpenChange(openId || null); return ()=>onDROpenChange(null); }, [openId]);
@@ -3216,6 +3216,12 @@ function ShiftingHub({ drs, setDrs, shiftLog=[], setShiftLog=()=>{}, moon={}, on
 
   return (
     <div className="animate-fade-up">
+      {hasPageBg && (
+        <div className="mb-4 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-xs" style={{background:"rgba(200,80,80,0.12)", border:"1px solid #c08080"}}>
+          <span style={{color:"var(--text)"}}>🖼️ Une image de fond est posée sur cette page Shifting.</span>
+          <button onClick={onClearPageBg} className="px-3 py-1 rounded-full flex-shrink-0" style={{background:"var(--primary)", color:"var(--bg)"}}>retirer le fond</button>
+        </div>
+      )}
       {/* DATA ANALYSER */}
       <ShiftAnalyser log={shiftLog} setLog={setShiftLog} moon={moon}/>
 
@@ -6076,9 +6082,20 @@ export default function App() {
           if (data.customRituals) setCustomRituals(data.customRituals);
           if (data.customTips) setCustomTips(data.customTips);
           if (data.customAffirm) setCustomAffirm(data.customAffirm);
+          // 🧹 nettoyage auto : retire les vieux fonds base64 trop lourds (cause des "images fantômes" + sauvegarde bloquée)
+          if (data.overrides) {
+            const cleaned = {}; let changed = false;
+            Object.entries(data.overrides).forEach(([k,v])=>{
+              const o = {...v};
+              if (typeof o.bgImage === "string" && o.bgImage.startsWith("data:") && o.bgImage.length > 200000) {
+                delete o.bgImage; delete o.bgOpacity; changed = true;
+              }
+              if (Object.keys(o).length) cleaned[k] = o;
+            });
+            if (changed) setOverrides(cleaned);
+          }
         }
         setLoadingState(false);
-        // attendre un petit instant avant d'autoriser les sauvegardes
         setTimeout(()=>{ initialLoadDone.current = true; }, 500);
       } else {
         initialLoadDone.current = false;
@@ -6565,7 +6582,10 @@ export default function App() {
 
           {activeSub==="tarot" && <CardList items={tarotLog} setItems={setTarotLog} title="Journal de tirages" fields={[{k:"title",label:"Date/contexte"},{k:"deck",label:"Jeu"},{k:"question",label:"Question"},{k:"cards",label:"Cartes",multi:true},{k:"interpretation",label:"Interprétation",multi:true,big:true}]}/>}
 
-          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes} shiftLog={shiftLog} setShiftLog={setShiftLog} moon={moon} onDROpenChange={setDrOpen}/>}
+          {activeSub==="shifting" && <ShiftingHub drs={shiftingNotes} setDrs={setShiftingNotes} shiftLog={shiftLog} setShiftLog={setShiftLog} moon={moon} onDROpenChange={setDrOpen}
+            hasPageBg={!!(overrides["sub:witch:shifting"]?.bgImage)}
+            onClearPageBg={()=>{ const c={...overrides}; if(c["sub:witch:shifting"]){ const {bgImage,bgOpacity,...rest}=c["sub:witch:shifting"]; if(Object.keys(rest).length) c["sub:witch:shifting"]=rest; else delete c["sub:witch:shifting"]; } setOverrides(c); }}
+          />}
           {activeSub==="anchor" && <RealityAnchor drs={shiftingNotes}/>}
           {activeSub==="fairy" && <FairyRealm data={fairyData} setData={setFairyData}/>}
 
