@@ -6018,11 +6018,15 @@ export default function App() {
   const [loadingState, setLoadingState] = useState(false);
   const initialLoadDone = useRef(false);
 
+  const loadedForUid = useRef(null);
   useEffect(()=>{
     const unsub = watchUser(async (u)=>{
       setUser(u);
       setAuthReady(true);
       if (u) {
+        // ne charger qu'UNE fois par utilisateur (évite que Firebase réécrase tes données fraîches quand il revérifie le token)
+        if (loadedForUid.current === u.uid) return;
+        loadedForUid.current = u.uid;
         setLoadingState(true);
         initialLoadDone.current = false;
         const data = await loadState(u.uid);
@@ -6099,6 +6103,7 @@ export default function App() {
         setTimeout(()=>{ initialLoadDone.current = true; }, 500);
       } else {
         initialLoadDone.current = false;
+        loadedForUid.current = null;
       }
     });
     return unsub;
