@@ -1480,7 +1480,7 @@ function ImgPicker({ value, onChange, placeholder="URL image", small=false, hq=f
         className={`flex-1 bg-transparent outline-none ${small?"text-[9px]":"text-xs"}`} style={{color:"var(--text)", borderBottom:"1px solid var(--border)", padding:"2px 0"}}/>
       <label className={`cursor-pointer rounded-full flex-shrink-0 flex items-center justify-center ${small?"px-1.5 py-0.5 text-[9px]":"px-2 py-1 text-[10px]"}`} style={{background:"var(--primary)", color:"var(--bg)"}}>
         🖼️
-        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f, hq?1400:1000, hq?0.82:0.8); onChange(d); e.target.value=""; }}/>
+        <input type="file" accept="image/*" className="hidden" onChange={async e=>{ const f=e.target.files?.[0]; if(!f) return; const d=await fileToCompressedDataUrl(f, hq?1200:1000, hq?0.72:0.8); onChange(d); e.target.value=""; }}/>
       </label>
     </div>
   );
@@ -2661,6 +2661,15 @@ function ControlPanel({ open, onClose, ctx }) {
   const setOv = (patch) => setOverrides({ ...overrides, [targetKey]: { ...ov, ...patch } });
   const resetOv = () => { const c={...overrides}; delete c[targetKey]; setOverrides(c); };
 
+  // 🧹 nettoie TOUS les fonds image (résout images fantômes + sauvegarde qui échoue car trop lourde)
+  const cleanAllBgImages = () => {
+    if(!confirm("Retirer TOUTES les images de fond de toutes les pages ? (les thèmes et couleurs restent)")) return;
+    const c = {};
+    Object.entries(overrides).forEach(([k,v])=>{ const {bgImage, bgOpacity, ...rest}=v; if(Object.keys(rest).length) c[k]=rest; });
+    setOverrides(c);
+    alert("Fonds image retirés. La sauvegarde devrait repartir.");
+  };
+
   const subs = subTabsFor(activeSection);
 
   return (
@@ -2750,6 +2759,9 @@ function ControlPanel({ open, onClose, ctx }) {
 
             <button onClick={resetOv} className="w-full py-2 rounded-lg text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--muted)"}}>
               ↺ Réinitialiser cette {scopeSel==="section"?"section":"sous-section"}
+            </button>
+            <button onClick={cleanAllBgImages} className="w-full py-2 mt-2 rounded-lg text-xs" style={{background:"rgba(200,80,80,0.12)", border:"1px solid #c08080", color:"var(--text)"}}>
+              🧹 Retirer toutes les images de fond (résout images fantômes)
             </button>
           </>)}
 
@@ -3471,9 +3483,10 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
   const [showTheme, setShowTheme] = useState(false);
 
   return (
-    <div className="animate-fade-up relative" style={{zIndex:0}}>
-      {/* fond image propre à la DR — couvre tout l'écran derrière le contenu */}
-      {dr.bgImage && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover fixed`, opacity:dr.bgOpacity??0.5, zIndex:0}}/>}
+    <>
+      {/* fond image propre à la DR — fixe, plein écran (hors élément animé pour ne pas être piégé par transform) */}
+      {dr.bgImage && <div className="fixed inset-0 pointer-events-none" style={{background:`url(${dr.bgImage}) center/cover`, opacity:dr.bgOpacity??0.5, zIndex:0}}/>}
+    <div className="animate-fade-up relative" style={{zIndex:1}}>
       {/* contenu au-dessus du fond */}
       <div className="relative" style={{zIndex:1}}>
       {/* Barre de retour */}
@@ -3718,6 +3731,7 @@ function ShiftingScriptPage({ dr, onBack, onUpdate, onDelete }) {
       <DRGazette dr={dr} onUpdate={onUpdate}/>
       </div>
     </div>
+    </>
   );
 }
 
