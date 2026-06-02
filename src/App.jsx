@@ -2006,10 +2006,12 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
   );
 
   /* ---- PIÈCE COZY ---- */
-  const isBook = (i) => /livre|manga|roman|bd|comic|bouquin|webtoon/i.test(i.type||"");
+  const isGame = (i) => /jeu|game|jeux|console|gaming|video.?game/i.test(i.type||"");
+  const isBook = (i) => !isGame(i) && /livre|manga|roman|bd|comic|bouquin|webtoon/i.test(i.type||"");
   const works = items.filter(i=>i.id!=="_bingo");
+  const games = works.filter(isGame);
   const books = works.filter(isBook);
-  const screens = works.filter(i=>!isBook(i));
+  const screens = works.filter(i=>!isBook(i) && !isGame(i));
   const favs = works.filter(i=>i.status==="favori");
 
   // ambiance heure (fenêtre)
@@ -2148,13 +2150,93 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
     </div>
   );
 
+  // vue zoomée console de jeux
+  if (zoom==="games") {
+    const byStatus = (st)=>games.filter(g=>g.status===st);
+    const addGame = (status) => { const it={id:uid(), created:new Date().toISOString().slice(0,10), title:"Nouveau jeu", type:"jeu vidéo", status, rating:"", note:"", image:"", platform:""}; setItems([it,...items]); setOpenId(it.id); };
+    const top5 = games.filter(g=>g.status==="favori").slice(0,5);
+    return (
+      <div className="animate-fade-up">
+        <button onClick={()=>setZoom(null)} className="mb-4 px-3 py-2 rounded-full text-sm" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← retour à la pièce</button>
+        <h3 className="text-2xl mb-1" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🎮 Mon coin gaming</h3>
+        <p className="text-xs italic mb-4" style={{color:"var(--muted)"}}>{games.length} jeu(x) · pose ton top 5, ce que tu joues, ce que tu veux jouer</p>
+
+        {/* recherche par titre */}
+        <div className="rounded-2xl p-3 mb-4" style={{background:"var(--surface)", border:"1px solid var(--accent)"}}>
+          <p className="text-[11px] mb-2" style={{color:"var(--accent)"}}>🔎 Cherche un jeu par titre</p>
+          <div className="flex gap-2">
+            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&runSearch("all")} placeholder="ex: Zelda, Hades, Stardew Valley..." className="flex-1 px-3 py-2 rounded-lg bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", color:"var(--text)"}}/>
+            <button onClick={()=>runSearch("all")} disabled={searching} className="px-4 rounded-lg text-sm" style={{background:"var(--primary)", color:"var(--bg)"}}>{searching?"⏳":"🔎"}</button>
+          </div>
+          {searchRes && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+              {searchRes.map((r,i)=>(
+                <button key={i} onClick={()=>{ const it={id:uid(),created:new Date().toISOString().slice(0,10),title:r.title,type:"jeu vidéo",status:"à jouer",rating:"",note:r.note||"",image:r.image||"",platform:""}; setItems([it,...items]); setSearchRes(null); setSearchQ(""); setOpenId(it.id); }} className="text-left rounded-xl overflow-hidden transition hover:scale-105" style={{background:"var(--surface2)", border:"1px solid var(--border)"}}>
+                  <div style={{aspectRatio:"3/4", background:r.image?`url(${r.image}) center/cover`:"var(--surface)"}}>{!r.image && <div className="w-full h-full flex items-center justify-center text-2xl">🎮</div>}</div>
+                  <div className="p-1.5"><p className="text-[10px] leading-tight line-clamp-2" style={{color:"var(--text)"}}>{r.title}</p></div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* TOP 5 */}
+        <div className="rounded-2xl p-4 mb-4" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--accent)"}}>
+          <p className="text-sm font-bold mb-3" style={{color:"var(--accent)", fontFamily:'"Dancing Script",cursive', fontSize:"20px"}}>🏆 Mon Top 5</p>
+          <div className="grid grid-cols-5 gap-2">
+            {[0,1,2,3,4].map(rank=>{
+              const g = top5[rank];
+              return (
+                <div key={rank} className="text-center">
+                  <div className="relative rounded-xl overflow-hidden" style={{aspectRatio:"3/4", background: g?(g.image?`url(${g.image}) center/cover`:"var(--surface2)"):"var(--surface)", border: g?"2px solid var(--accent)":"1px dashed var(--border)", cursor:g?"pointer":"default"}} onClick={()=>g&&setOpenId(g.id)}>
+                    <span className="absolute top-0.5 left-0.5 text-[10px] px-1 rounded-full" style={{background:"var(--primary)", color:"var(--bg)"}}>#{rank+1}</span>
+                    {g && !g.image && <div className="w-full h-full flex items-center justify-center text-xl">🎮</div>}
+                  </div>
+                  <p className="text-[9px] mt-0.5 leading-tight" style={{color:"var(--text)"}}>{g?g.title:"—"}</p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] italic mt-2" style={{color:"var(--muted)"}}>Marque un jeu en "favori" (cœur dans sa fiche) pour qu'il entre dans ton top 5.</p>
+        </div>
+
+        {/* listes par statut */}
+        {[
+          {st:"en cours", label:"🕹️ En train de jouer", emoji:"🕹️"},
+          {st:"à jouer", label:"📥 Je veux y jouer", emoji:"📥"},
+          {st:"terminé", label:"✅ Terminés", emoji:"✅"},
+          {st:"favori", label:"💖 Favoris", emoji:"💖"},
+        ].map(group=>(
+          <div key={group.st} className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-bold" style={{color:"var(--text)"}}>{group.label} <span style={{color:"var(--muted)"}}>({byStatus(group.st).length})</span></h4>
+              <button onClick={()=>addGame(group.st)} className="text-[11px] flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={11}/> ajouter</button>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {byStatus(group.st).map(g=>(
+                <button key={g.id} onClick={()=>setOpenId(g.id)} className="text-left rounded-xl overflow-hidden transition hover:scale-105" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
+                  <div style={{aspectRatio:"3/4", background:g.image?`url(${g.image}) center/cover`:"var(--surface2)"}}>{!g.image && <div className="w-full h-full flex items-center justify-center text-2xl">🎮</div>}</div>
+                  <div className="p-1.5">
+                    <p className="text-[10px] leading-tight line-clamp-2" style={{color:"var(--text)"}}>{g.title}</p>
+                    {g.platform && <p className="text-[8px]" style={{color:"var(--muted)"}}>{g.platform}</p>}
+                  </div>
+                </button>
+              ))}
+              {byStatus(group.st).length===0 && <p className="col-span-full text-[11px] italic py-2" style={{color:"var(--muted)"}}>Rien ici pour l'instant.</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   // ----- LA PIÈCE -----
   return (
     <div className="animate-fade-up">
       {roomProgress}
       <div className="text-center mb-4">
         <h3 className="text-2xl" style={{fontFamily:'"Dancing Script",cursive', color:"var(--accent)"}}>🏠 Mon petit cocon</h3>
-        <p className="text-xs italic" style={{color:"var(--muted)"}}>Touche la bibliothèque ou la télé pour explorer</p>
+        <p className="text-xs italic" style={{color:"var(--muted)"}}>Touche la bibliothèque, la télé ou la console</p>
       </div>
 
       <div className="relative rounded-3xl overflow-hidden mx-auto" style={{maxWidth:"720px", aspectRatio:"4/3", background:"linear-gradient(180deg, var(--surface2) 0%, var(--bg2) 70%)", border:"1px solid var(--border)", boxShadow:"inset 0 0 50px rgba(0,0,0,0.2)"}}>
@@ -2176,7 +2258,24 @@ function PassionsList({ items, setItems, onMakeDR, decor=[], roomProgress=null }
         {/* tapis */}
         <div className="absolute rounded-[50%]" style={{left:"50%", bottom:"3%", transform:"translateX(-50%)", width:"40%", height:"9%", background:"var(--accent)", opacity:0.25}}/>
         {/* plante */}
-        <span className="absolute" style={{left:"48%", bottom:"15%", transform:"translateX(-50%)", fontSize:"26px"}}>🪴</span>
+        <span className="absolute" style={{left:"30%", bottom:"15%", transform:"translateX(-50%)", fontSize:"26px"}}>🪴</span>
+
+        {/* ---- ÉCRAN GAMING (centre-bas) ---- */}
+        <button onClick={()=>setZoom("games")} className="absolute transition hover:brightness-110 hover:-translate-y-0.5" style={{left:"50%", bottom:"8%", transform:"translateX(-50%)", width:"24%"}}>
+          {/* écran large gaming */}
+          <div className="relative mx-auto" style={{width:"100%", aspectRatio:"16/9", background:"#0a0a0e", borderRadius:"5px", border:"3px solid #18181f", boxShadow:"0 0 16px rgba(107,213,255,0.4)"}}>
+            <div className="absolute inset-[3px] rounded-sm overflow-hidden" style={{background: night?"linear-gradient(135deg,#1a0a3a,#3a1060)":"linear-gradient(135deg,#2a3a6a,#4a6ab0)"}}>
+              <span className="absolute inset-0 flex items-center justify-center text-2xl" style={{animation:"twinkle 2.5s ease-in-out infinite"}}>🎮</span>
+              <div className="absolute inset-0" style={{background:"repeating-linear-gradient(0deg,rgba(255,255,255,0.05),rgba(255,255,255,0.05) 2px,transparent 2px,transparent 4px)"}}/>
+            </div>
+            {/* liseré RGB bas d'écran */}
+            <div className="absolute inset-x-2" style={{bottom:"-2px", height:"3px", background:"linear-gradient(90deg,#ff4d6d,#6bd5ff,#b06bff,#ff4d6d)", backgroundSize:"200% 100%", animation:"holoShift 4s linear infinite", borderRadius:"2px"}}/>
+          </div>
+          {/* pied d'écran */}
+          <div className="mx-auto" style={{width:"7%", height:"8px", background:"#18181f"}}/>
+          <div className="mx-auto" style={{width:"26%", height:"4px", background:"#18181f", borderRadius:"2px"}}/>
+          <p className="text-center text-[11px] mt-1.5" style={{color:"var(--text)", fontFamily:'"Dancing Script",cursive'}}>🎮 {games.length} jeux</p>
+        </button>
 
         {/* ---- BIBLIOTHÈQUE (gauche) ---- */}
         <div className="absolute" style={{left:"5%", top:"30%", width:"28%", bottom:"16%"}}>
