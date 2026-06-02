@@ -1503,7 +1503,7 @@ function ImgPicker({ value, onChange, placeholder="URL image", small=false, hq=f
 }
 
 function ScrapbookEditor({ pages, setPages }) {
-  const [activePage, setActivePage] = useState(pages[0]?.id || null);
+  const [activePage, setActivePage] = useState(null);
   const [choosing, setChoosing] = useState(false); // affiche le choix de format
   const current = pages.find(p=>p.id===activePage);
   const healingQ = pickByDate(HEALING_QUESTIONS, "heal");
@@ -1561,19 +1561,40 @@ function ScrapbookEditor({ pages, setPages }) {
         </div>
       )}
 
-      {/* sélecteur de pages */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-        {pages.map(p=>(
-          <button key={p.id} onClick={()=>setActivePage(p.id)} className="flex-shrink-0 px-3 py-2 rounded-xl text-xs transition"
-            style={{background:activePage===p.id?"var(--primary)":"var(--surface)", color:activePage===p.id?"var(--bg)":"var(--text)", border:"1px solid var(--border)"}}>
-            {p.format==="note"?"📝":"🖼️"} {p.title} <span className="opacity-60">· {p.date}</span>
-          </button>
-        ))}
-        {pages.length===0 && <p className="text-xs italic" style={{color:"var(--muted)"}}>Crée ta première page ✦</p>}
-      </div>
+      {/* GRILLE DES PAGES (journal secret) quand aucune page ouverte */}
+      {!current && (
+        pages.length===0 ? (
+          <p className="text-center italic py-12 text-sm" style={{color:"var(--muted)"}}>Ton journal est vierge. Crée ta première page ✦</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pages.map(p=>{
+              const preview = p.format==="note"
+                ? (p.html ? p.html.replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").trim() : (p.body||"").trim())
+                : (p.blocks||[]).filter(b=>b.type==="text"||b.type==="title").map(b=>b.content).join(" · ");
+              const firstImg = p.format==="note" ? (p.images||[])[0] : (p.blocks||[]).find(b=>b.type==="image"||b.type==="gif")?.content;
+              return (
+                <button key={p.id} onClick={()=>setActivePage(p.id)} className="group text-left rounded-2xl overflow-hidden transition hover:scale-[1.02]" style={{background:"linear-gradient(160deg, var(--surface2), var(--surface))", border:"1px solid var(--border)", boxShadow:"0 4px 14px rgba(0,0,0,0.12)"}}>
+                  {firstImg
+                    ? <div style={{height:"120px", background:`url(${firstImg}) center/cover`}}/>
+                    : <div className="flex items-center justify-center" style={{height:"120px", background:"var(--surface2)", color:"var(--muted)"}}><span className="text-3xl">{p.format==="note"?"📝":"🖼️"}</span></div>}
+                  <div className="p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h4 className="text-lg leading-tight" style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}>{p.title||"Sans titre"}</h4>
+                      <Trash2 size={13} className="opacity-0 group-hover:opacity-100 transition flex-shrink-0" style={{color:"var(--muted)"}} onClick={(ev)=>{ ev.stopPropagation(); if(confirm("Supprimer cette page ?")) delPage(p.id); }}/>
+                    </div>
+                    <p className="text-[10px] mb-1" style={{color:"var(--muted)"}}>{p.format==="note"?"📝 note":"🖼️ scrapbook"} · {p.date}</p>
+                    {preview && <p className="text-xs leading-snug" style={{color:"var(--muted)", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden"}}>{preview}</p>}
+                    <span className="inline-block mt-2 text-[11px]" style={{color:"var(--accent)"}}>✦ ouvrir</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )
+      )}
 
       {current && (<>
-        {/* barre d'outils */}
+        <button onClick={()=>setActivePage(null)} className="mb-3 px-3 py-1.5 rounded-full text-xs" style={{background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text)"}}>← mes pages</button>
         <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl" style={{background:"var(--surface)", border:"1px solid var(--border)"}}>
           <input value={current.title} onChange={e=>updatePage({title:e.target.value})} className="bg-transparent outline-none text-lg flex-1 min-w-[120px]"
             style={{fontFamily:'"Dancing Script", cursive', color:"var(--text)"}}/>
@@ -1586,6 +1607,7 @@ function ScrapbookEditor({ pages, setPages }) {
               )})}
             </div>
           )}
+          <button onClick={()=>setActivePage(null)} className="px-3 py-1.5 rounded-lg text-xs" style={{background:"var(--primary)", color:"var(--bg)"}}>✓ enregistrer</button>
           <button onClick={()=>delPage(current.id)} className="px-2 py-1.5 rounded-lg text-xs" style={{color:"var(--muted)"}}><Trash2 size={12}/></button>
         </div>
 
@@ -3944,24 +3966,57 @@ function DRSocialGraph({ dr, onUpdate }) {
                   </div>
                 ))}
 
-                {/* galerie de photos perso */}
+                {/* sections personnalisées (titre + emoji modifiables) */}
+                {(cur.customFields||[]).map((cf)=>(
+                  <div key={cf.id}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <input value={cf.emoji||""} onChange={e=>upd(cur.id,{customFields:(cur.customFields||[]).map(x=>x.id===cf.id?{...x,emoji:e.target.value}:x)})} placeholder="✦" className="w-7 text-center bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", borderRadius:"6px"}}/>
+                      <input value={cf.label||""} onChange={e=>upd(cur.id,{customFields:(cur.customFields||[]).map(x=>x.id===cf.id?{...x,label:e.target.value}:x)})} placeholder="Titre de la section" className="flex-1 text-xs font-bold bg-transparent outline-none" style={{color:"var(--accent)", borderBottom:"1px solid var(--border)"}}/>
+                      <button onClick={()=>upd(cur.id,{customFields:(cur.customFields||[]).filter(x=>x.id!==cf.id)})} style={{color:"var(--muted)"}}><X size={12}/></button>
+                    </div>
+                    <textarea value={cf.value||""} onChange={e=>upd(cur.id,{customFields:(cur.customFields||[]).map(x=>x.id===cf.id?{...x,value:e.target.value}:x)})} rows={3} placeholder="Écris ici..." className="w-full bg-transparent outline-none text-sm" style={{border:"1px solid var(--border)", borderRadius:"10px", padding:"8px", color:"var(--text)"}}/>
+                  </div>
+                ))}
+                <button onClick={()=>upd(cur.id,{customFields:[...(cur.customFields||[]),{id:uid(),emoji:"✦",label:"",value:""}]})} className="text-[11px] flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={11}/> ajouter une section (titre + emoji)</button>
+
+                {/* galerie de photos — feed type Instagram */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold" style={{color:"var(--accent)"}}>📸 Ses photos</label>
-                    <button onClick={()=>upd(cur.id,{photos:[...photos,{id:uid(),url:"",cap:""}]})} className="text-[11px] flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={11}/> photo</button>
+                    <label className="text-xs font-bold" style={{color:"var(--accent)"}}>📸 Galerie</label>
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>upd(cur.id,{_editPhotos:!cur._editPhotos})} className="text-[11px]" style={{color:"var(--muted)"}}>{cur._editPhotos?"✓ terminé":"✏️ modifier"}</button>
+                      <button onClick={()=>upd(cur.id,{photos:[...photos,{id:uid(),url:"",cap:""}], _editPhotos:true})} className="text-[11px] flex items-center gap-1" style={{color:"var(--accent)"}}><Plus size={11}/> photo</button>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {photos.map(ph=>(
-                      <div key={ph.id} className="group relative rounded-lg overflow-hidden" style={{border:"1px solid var(--border)"}}>
-                        {ph.url ? <img src={ph.url} alt="" className="w-full object-cover" style={{aspectRatio:"1"}}/> : <div className="flex items-center justify-center text-xl" style={{aspectRatio:"1", background:"var(--surface2)"}}>📸</div>}
-                        <div className="p-1" style={{background:"var(--surface2)"}}>
-                          <ImgPicker value={ph.url} onChange={v=>upd(cur.id,{photos:photos.map(x=>x.id===ph.id?{...x,url:v}:x)})} placeholder="URL" small/>
-                          <input value={ph.cap||""} onChange={e=>upd(cur.id,{photos:photos.map(x=>x.id===ph.id?{...x,cap:e.target.value}:x)})} placeholder="légende" className="w-full text-[9px] bg-transparent outline-none italic mt-0.5" style={{color:"var(--muted)"}}/>
+                  {cur._editPhotos ? (
+                    /* mode édition : champ URL visible */
+                    <div className="grid grid-cols-3 gap-2">
+                      {photos.map(ph=>(
+                        <div key={ph.id} className="group relative rounded-lg overflow-hidden" style={{border:"1px solid var(--border)"}}>
+                          {ph.url ? <img src={ph.url} alt="" className="w-full object-cover" style={{aspectRatio:"1"}}/> : <div className="flex items-center justify-center text-xl" style={{aspectRatio:"1", background:"var(--surface2)"}}>📸</div>}
+                          <div className="p-1" style={{background:"var(--surface2)"}}>
+                            <ImgPicker value={ph.url} onChange={v=>upd(cur.id,{photos:photos.map(x=>x.id===ph.id?{...x,url:v}:x)})} placeholder="URL" small/>
+                            <input value={ph.cap||""} onChange={e=>upd(cur.id,{photos:photos.map(x=>x.id===ph.id?{...x,cap:e.target.value}:x)})} placeholder="légende" className="w-full text-[9px] bg-transparent outline-none italic mt-0.5" style={{color:"var(--muted)"}}/>
+                          </div>
+                          <button onClick={()=>upd(cur.id,{photos:photos.filter(x=>x.id!==ph.id)})} className="absolute top-0.5 right-0.5 p-0.5 rounded-full" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={10}/></button>
                         </div>
-                        <button onClick={()=>upd(cur.id,{photos:photos.filter(x=>x.id!==ph.id)})} className="absolute top-0.5 right-0.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100" style={{background:"rgba(0,0,0,0.6)", color:"#fff"}}><X size={10}/></button>
+                      ))}
+                    </div>
+                  ) : (
+                    /* mode affichage : feed instagram propre (que les photos remplies) */
+                    photos.filter(p=>p.url).length === 0 ? (
+                      <p className="text-[11px] italic text-center py-3" style={{color:"var(--muted)"}}>Aucune photo. Clique ✏️ modifier pour en ajouter.</p>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-0.5">
+                        {photos.filter(p=>p.url).map(ph=>(
+                          <div key={ph.id} className="relative group overflow-hidden" style={{aspectRatio:"1"}}>
+                            <img src={ph.url} alt="" className="w-full h-full object-cover transition group-hover:scale-105"/>
+                            {ph.cap && <div className="absolute bottom-0 inset-x-0 px-1.5 py-1 text-[9px] opacity-0 group-hover:opacity-100 transition" style={{background:"linear-gradient(transparent,rgba(0,0,0,0.7))", color:"#fff"}}>{ph.cap}</div>}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2">
